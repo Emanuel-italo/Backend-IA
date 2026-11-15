@@ -7,12 +7,13 @@ import logging
 from functools import lru_cache
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import RedirectResponse
 
 from .adapters.directions import routes_from_directions
 from .catalog import Catalog
 from .config import Settings, get_settings
 from .explain import Explainer
-from .llm import GeminiClient
+from .llm import build_llm
 from .models import RankRequest, RankResponse, Route
 from .rag import Retriever
 from .reports import ReportStore
@@ -33,17 +34,25 @@ def get_ranker() -> RouteRanker:
     catalog = Catalog.from_file(s.data_dir / "pontos.json")
     store = ReportStore.from_seed(s.data_dir / "relatos.json")
     retriever = Retriever.from_file(s.data_dir / "base_conhecimento.json", min_score=s.rag_min_score)
-    llm = (
-        GeminiClient(s.gemini_api_key, s.llm_model, s.llm_timeout_s, s.llm_max_retries)
-        if s.gemini_api_key else None
-    )
-    return RouteRanker(catalog, store, Explainer(retriever, llm, s.rag_top_k, s.cache_size))
+    return RouteRanker(catalog, store, Explainer(retriever, build_llm(s), s.rag_top_k, s.cache_size))
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    expected = get_settings().service_api_key
-    if expected and not (x_api_key and hmac.compare_digest(x_api_key, expected)):
+    s = get_settings()
+    expected = s.service_api_key
+    if not expected:
+        # Publicado (Vercel production/preview) sem chave = endpoint aberto gastando créditos do LLM.
+        # Falha fechada em vez de aceitar qualquer chamada.
+        if s.deploy_env in ("production", "preview"):
+            raise HTTPException(status_code=503, detail="Serviço sem SERVICE_API_KEY configurada")
+        return
+    if not (x_api_key and hmac.compare_digest(x_api_key, expected)):
         raise HTTPException(status_code=401, detail="API key inválida ou ausente")
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
