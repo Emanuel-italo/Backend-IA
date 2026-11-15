@@ -1,0 +1,12 @@
+{
+  "_aviso": "DADOS SINTÉTICOS PARA DEMONSTRAÇÃO ACADÊMICA. Os nomes são de locais reais de São Paulo, mas os atributos de acessibilidade abaixo NÃO refletem a situação real das estações. Em produção, esta tabela seria alimentada por dados abertos (GTFS/SPTrans/Metrô) e pelos gestores.",
+  "places": [
+    {"id": "station:santa-cecilia", "name": "Estação Santa Cecília", "type": "station", "has_elevator": true, "stairs_flights": 2, "aliases": ["Santa Cecília", "Metrô Santa Cecília"]},
+    {"id": "station:republica", "name": "Estação República", "type": "station", "has_elevator": true, "stairs_flights": 2, "aliases": ["República", "Metrô República"]},
+    {"id": "station:anhangabau", "name": "Estação Anhangabaú", "type": "station", "has_elevator": true, "stairs_flights": 2, "aliases": ["Anhangabaú", "Metrô Anhangabaú"]},
+    {"id": "station:se", "name": "Estação Sé", "type": "station", "has_elevator": true, "stairs_flights": 3, "aliases": ["Sé", "Metrô Sé"]},
+    {"id": "stop:palmeiras-200", "name": "Ponto Rua das Palmeiras, 200", "type": "bus_stop", "covered": true, "seating": true, "aliases": ["Rua das Palmeiras, 200"]},
+    {"id": "stop:praca-republica", "name": "Ponto Praça da República", "type": "bus_stop", "covered": false, "seating": false, "aliases": ["Praça da República"]},
+    {"id": "stop:ubs-centro", "name": "Ponto UBS Centro", "type": "bus_stop", "covered": true, "seating": true, "aliases": ["UBS Centro"]}
+  ]
+}
