@@ -1,6 +1,6 @@
 # Resultados da avaliação
 
-Gerado por `python eval/run_eval.py` em 14/11/2026 18:39 UTC. As seções 1 a 5 são determinísticas e rodam sem chave de API.
+Gerado por `python eval/run_eval.py` em 15/11/2026 14:55 UTC. As seções 1 a 5 são determinísticas e rodam sem chave de API.
 
 ## 1. Recuperação (RAG básico)
 
@@ -84,6 +84,6 @@ Respostas infiéis que **passaram** (limitação conhecida do validador heuríst
 | Relato expirado | ignorado no score (`tests/test_scoring.py`) |
 | Parada sem correspondência no catálogo | penalidade `sem_dados` + aviso, sem inventar atributos |
 
-## 6. IA generativa real (Gemini)
+## 6. IA generativa real
 
-**Não executado nesta geração do relatório** (sem `--live` ou sem `GEMINI_API_KEY`). Rode `python eval/run_eval.py --live` com a chave do grupo para preencher esta seção com a taxa de aceitação, a latência e amostras das respostas reais.
+**Não executado nesta geração do relatório** (sem `--live` ou sem `LLM_API_KEY`/`LLM_MODEL`). Rode `python eval/run_eval.py --live` com a chave do grupo para preencher esta seção com a taxa de aceitação, a latência e amostras das respostas reais.
