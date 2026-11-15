@@ -1,0 +1,26 @@
+{
+  "_aviso": "ROTAS SINTÉTICAS no formato interno (mesmo formato produzido pelo adaptador da Google Directions API). Cenário: Júlia sai da região de Santa Cecília para o pré-natal na UBS Centro. Linhas de ônibus fictícias.",
+  "rotas": [
+    {"id": "r1-metro-se", "summary": "Metrô Linha 3-Vermelha até a Sé", "duration_min": 22, "legs": [
+      {"mode": "WALK", "distance_m": 250, "duration_min": 4, "to_place": "station:santa-cecilia"},
+      {"mode": "SUBWAY", "line": "3-Vermelha", "duration_min": 6, "num_stops": 3, "from_place": "station:santa-cecilia", "to_place": "station:se"},
+      {"mode": "WALK", "distance_m": 350, "duration_min": 6, "from_place": "station:se"}
+    ]},
+    {"id": "r2-onibus-direto", "summary": "Ônibus 701A direto", "duration_min": 31, "legs": [
+      {"mode": "WALK", "distance_m": 150, "duration_min": 3, "to_place": "stop:palmeiras-200"},
+      {"mode": "BUS", "line": "701A", "duration_min": 18, "num_stops": 9, "from_place": "stop:palmeiras-200", "to_place": "stop:ubs-centro"},
+      {"mode": "WALK", "distance_m": 200, "duration_min": 4, "from_place": "stop:ubs-centro"}
+    ]},
+    {"id": "r3-metro-onibus", "summary": "Metrô até República + ônibus 702B", "duration_min": 35, "legs": [
+      {"mode": "WALK", "distance_m": 250, "duration_min": 4, "to_place": "station:santa-cecilia"},
+      {"mode": "SUBWAY", "line": "3-Vermelha", "duration_min": 2, "num_stops": 1, "from_place": "station:santa-cecilia", "to_place": "station:republica"},
+      {"mode": "BUS", "line": "702B", "duration_min": 12, "num_stops": 5, "from_place": "stop:praca-republica", "to_place": "stop:ubs-centro"},
+      {"mode": "WALK", "distance_m": 200, "duration_min": 4, "from_place": "stop:ubs-centro"}
+    ]},
+    {"id": "r4-metro-ladeira", "summary": "Metrô até Anhangabaú + caminhada", "duration_min": 26, "legs": [
+      {"mode": "WALK", "distance_m": 250, "duration_min": 4, "to_place": "station:santa-cecilia"},
+      {"mode": "SUBWAY", "line": "3-Vermelha", "duration_min": 4, "num_stops": 2, "from_place": "station:santa-cecilia", "to_place": "station:anhangabau"},
+      {"mode": "WALK", "distance_m": 700, "duration_min": 14, "from_place": "station:anhangabau", "segment_id": "calcada:ladeira-centro", "slope": "ingreme"}
+    ]}
+  ]
+}
