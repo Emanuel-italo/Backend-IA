@@ -1,7 +1,7 @@
 """Demo de linha de comando: cenário da Júlia (gestante) e comparação com outros perfis.
 
 Uso:  python scripts/demo.py [perfil]      (perfil padrão: gestante)
-Com GEMINI_API_KEY definida, as explicações vêm do LLM; sem ela, do template.
+Com LLM_API_KEY definida, as explicações vêm do LLM; sem ela, do template.
 """
 import json
 import sys
