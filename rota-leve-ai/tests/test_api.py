@@ -14,7 +14,7 @@ DIRECTIONS = json.loads((Path(__file__).parent / "fixtures" / "directions_sample
 
 @pytest.fixture()
 def client(monkeypatch):
-    monkeypatch.setattr(main, "get_settings", lambda: Settings(gemini_api_key=None, service_api_key=None))
+    monkeypatch.setattr(main, "get_settings", lambda: Settings(llm_api_key=None, service_api_key=None))
     main.get_ranker.cache_clear()
     yield TestClient(main.app)
     main.get_ranker.cache_clear()
@@ -53,7 +53,7 @@ def test_entradas_invalidas_retornam_422(client, payload):
 
 
 def test_api_key_obrigatoria_quando_configurada(monkeypatch):
-    monkeypatch.setattr(main, "get_settings", lambda: Settings(gemini_api_key=None, service_api_key="segredo"))
+    monkeypatch.setattr(main, "get_settings", lambda: Settings(llm_api_key=None, service_api_key="segredo"))
     main.get_ranker.cache_clear()
     c = TestClient(main.app)
     body = {"profile": "idoso", "routes": ROUTES}
@@ -61,3 +61,19 @@ def test_api_key_obrigatoria_quando_configurada(monkeypatch):
     assert c.post("/v1/routes/rank", json=body, headers={"X-API-Key": "errado"}).status_code == 401
     assert c.post("/v1/routes/rank", json=body, headers={"X-API-Key": "segredo"}).status_code == 200
     main.get_ranker.cache_clear()
+
+
+@pytest.mark.parametrize("env", ["production", "preview"])
+def test_publicado_sem_service_api_key_falha_fechado(monkeypatch, env):
+    monkeypatch.setattr(main, "get_settings",
+                        lambda: Settings(llm_api_key=None, service_api_key=None, deploy_env=env))
+    main.get_ranker.cache_clear()
+    c = TestClient(main.app)
+    assert c.post("/v1/routes/rank", json={"profile": "idoso", "routes": ROUTES}).status_code == 503
+    assert c.get("/health").status_code == 200  # health e demo seguem públicos
+    main.get_ranker.cache_clear()
+
+
+def test_raiz_redireciona_para_docs(client):
+    r = client.get("/", follow_redirects=False)
+    assert r.status_code in (302, 307) and r.headers["location"] == "/docs"
