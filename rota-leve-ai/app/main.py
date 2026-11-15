@@ -41,9 +41,9 @@ def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
     s = get_settings()
     expected = s.service_api_key
     if not expected:
-        # Publicado (Vercel production/preview) sem chave = endpoint aberto gastando créditos do LLM.
+        # Publicado (APP_ENV=production) sem chave = endpoint aberto gastando créditos do LLM.
         # Falha fechada em vez de aceitar qualquer chamada.
-        if s.deploy_env in ("production", "preview"):
+        if s.deploy_env == "production":
             raise HTTPException(status_code=503, detail="Serviço sem SERVICE_API_KEY configurada")
         return
     if not (x_api_key and hmac.compare_digest(x_api_key, expected)):

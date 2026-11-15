@@ -1,6 +1,6 @@
 """Clientes de IA generativa atrás de uma interface mínima (`generate_json`).
 
-Provedor padrão: Grok (xAI), pela API compatível com o formato OpenAI (`/chat/completions`).
+Provedor padrão: Groq, pela API compatível com o formato OpenAI (`/chat/completions`).
 Gemini continua disponível como alternativa (LLM_PROVIDER=gemini).
 
 Por que REST puro com httpx: evita acoplamento a SDK, facilita timeout/retry e troca de provedor
@@ -82,9 +82,9 @@ class GeminiClient:
 
 
 class OpenAICompatibleClient:
-    """Cliente para APIs no formato OpenAI `/chat/completions`. Padrão: Grok (xAI)."""
+    """Cliente para APIs no formato OpenAI `/chat/completions`. Padrão: Groq."""
 
-    DEFAULT_BASE_URL = "https://api.x.ai/v1"
+    DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"
 
     def __init__(self, api_key: str, model: str, base_url: str = DEFAULT_BASE_URL, timeout_s: float = 10,
                  max_retries: int = 1, transport: httpx.BaseTransport | None = None):

@@ -63,7 +63,7 @@ def test_api_key_obrigatoria_quando_configurada(monkeypatch):
     main.get_ranker.cache_clear()
 
 
-@pytest.mark.parametrize("env", ["production", "preview"])
+@pytest.mark.parametrize("env", ["production"])
 def test_publicado_sem_service_api_key_falha_fechado(monkeypatch, env):
     monkeypatch.setattr(main, "get_settings",
                         lambda: Settings(llm_api_key=None, service_api_key=None, deploy_env=env))
@@ -77,3 +77,17 @@ def test_publicado_sem_service_api_key_falha_fechado(monkeypatch, env):
 def test_raiz_redireciona_para_docs(client):
     r = client.get("/", follow_redirects=False)
     assert r.status_code in (302, 307) and r.headers["location"] == "/docs"
+
+
+def test_deploy_env_detecta_render(monkeypatch):
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.setenv("RENDER", "true")
+    import importlib
+
+    from app import config
+    importlib.reload(config)  # os padrões do dataclass são lidos na importação
+    try:
+        assert config.Settings().deploy_env == "production"
+    finally:
+        monkeypatch.delenv("RENDER")
+        importlib.reload(config)
