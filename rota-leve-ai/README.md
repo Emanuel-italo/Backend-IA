@@ -9,11 +9,12 @@ O Rota Leve é um app de rotas de transporte público para quem não pode simple
 
 | RM | Nome completo | Turma |
 |---|---|---|
-| 561337 | Emanuel [completar] | 2TDS |
-| [RM] | [Nome completo] | [Turma] |
-| [RM] | [Nome completo] | [Turma] |
-| [RM] | [Nome completo] | [Turma] |
-| [RM] | [Nome completo] | [Turma] |
+| 561337 | Emanuel ítalo
+| 563557 | Matheus de Almeida Sousa 
+| 563734 | Enzo Monteiro Maciel  
+| 563811 | Paulo Estalise
+| 562012 | Gabriel Bebé 
+
 
 ## 1. O problema e a funcionalidade de IA
 
@@ -61,7 +62,7 @@ flowchart LR
     end
     KB[(Base de conhecimento<br/>13 trechos curados)]
     C[(Catálogo de pontos)]
-    L[[Gemini API<br/>IA generativa]]
+    L[[Grok API - xAI<br/>IA generativa]]
 
     M --> J
     J -->|rotas candidatas| G
@@ -98,12 +99,12 @@ app/
   rag.py             recuperação (TF-IDF) sobre a base de conhecimento
   explain.py         prompt, chamada ao LLM, fallback, cache
   grounding.py       validação de fidelidade da resposta do LLM
-  llm.py             cliente Gemini (REST) atrás de uma interface
+  llm.py             clientes Grok (padrão) e Gemini (REST) atrás de uma interface
   catalog.py         catálogo de estações e pontos
   adapters/directions.py   converte a resposta da Google Directions API
 data/                dados sintéticos + base de conhecimento
 eval/                casos de avaliação, script e RESULTADOS.md
-tests/               41 testes automatizados (pytest)
+tests/               52 testes automatizados (pytest)
 scripts/demo.py      demonstração por linha de comando
 ```
 
@@ -111,7 +112,7 @@ scripts/demo.py      demonstração por linha de comando
 
 | Componente | Escolha | Por quê |
 |---|---|---|
-| **IA generativa** | Gemini via API REST (`LLM_MODEL`, padrão `gemini-3.6-flash`) | A tarefa é redigir 2 frases a partir de fatos prontos: um modelo rápido e barato basta. API em vez de modelo local porque o serviço roda em contêiner pequeno, sem GPU. O cliente fica atrás de uma interface de um método (`generate_json`), então trocar de provedor é escrever uma classe. |
+| **IA generativa** | Grok (xAI) via API REST no formato OpenAI (`LLM_PROVIDER=grok`, modelo em `LLM_MODEL`) | A tarefa é redigir 2 frases a partir de fatos prontos: um modelo rápido e barato basta. API em vez de modelo local porque o serviço roda como função serverless (Vercel), sem GPU e com limite de tamanho de pacote. O cliente fica atrás de uma interface de um método (`generate_json`): o Gemini continua disponível com `LLM_PROVIDER=gemini`, e qualquer API compatível com OpenAI funciona trocando `LLM_BASE_URL`. |
 | **Aprofundamento: RAG básico** | TF-IDF de n-gramas de caracteres + similaridade de cosseno (scikit-learn) | A base é pequena e curada (13 trechos). N-gramas de caracteres toleram flexão e erro de digitação em português ("calsada"). É determinístico e roda offline, o que torna a avaliação reprodutível. Embeddings e banco vetorial só passam a compensar com uma base maior; a interface `Retriever.search` permite a troca sem mexer no resto. |
 | **Score de acessibilidade** | Regras ponderadas por perfil, não um modelo treinado | Não existe base rotulada real de "rota boa/ruim por perfil". Treinar um modelo em dados sintéticos mediria só as regras que usamos para gerar os dados. Regras explícitas são auditáveis (cada ponto perdido tem motivo) e servem de fatos para o LLM. Com uso real e feedback dos usuários, os pesos podem ser aprendidos. |
 | **Validação da saída** | Checagem de números e de contradições, com fallback | Em acessibilidade, uma frase errada ("elevador funcionando") tem custo físico para a pessoa. O LLM redige; ele não decide. |
@@ -142,9 +143,9 @@ Requisitos: Python 3.11+.
 ```bash
 git clone <url-do-repositorio> && cd rota-leve-ai
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt     # produção usa só requirements.txt
 
-cp .env.example .env        # preencha GEMINI_API_KEY (opcional)
+cp .env.example .env        # preencha LLM_API_KEY e LLM_MODEL (opcional)
 ```
 
 O serviço lê variáveis de ambiente. Para carregar o `.env` no terminal:
@@ -153,12 +154,12 @@ O serviço lê variáveis de ambiente. Para carregar o `.env` no terminal:
 export $(grep -v '^#' .env | xargs)        # Linux/macOS
 ```
 
-**Sem `GEMINI_API_KEY` tudo funciona em modo template** (score, ordenação, RAG e explicação determinística), útil para desenvolver e para os testes. Com a chave, as explicações passam a ser geradas pelo modelo.
+**Sem `LLM_API_KEY` (ou sem `LLM_MODEL`) tudo funciona em modo template** (score, ordenação, RAG e explicação determinística), útil para desenvolver e para os testes. Com a chave, as explicações passam a ser geradas pelo modelo.
 
 ```bash
 python scripts/demo.py gestante        # demo no terminal (troque o perfil: cadeirante, carrinho, idoso, mobilidade_temporaria)
 uvicorn app.main:app --reload          # API em http://localhost:8000  (documentação em /docs)
-python -m pytest -q                    # 41 testes
+python -m pytest -q                    # 52 testes
 python eval/run_eval.py                # avaliação offline -> eval/RESULTADOS.md
 python eval/run_eval.py --live         # idem + avaliação do modelo real (precisa da chave)
 ```
@@ -213,7 +214,20 @@ Também é possível enviar a resposta crua da Google Directions API no campo `d
 
 - **Java / .NET:** chamam `POST /v1/routes/rank` enviando o header `X-API-Key` (valor de `SERVICE_API_KEY`). O campo `reports` aceita os relatos ativos vindos da API .NET; sem ele, o serviço usa a base local de demonstração.
 - **Mobile:** exibe `score`, `label`, `breakdown` e `explanation` na tela de resultado. O campo `notice` deve aparecer junto.
-- **Nuvem:** o serviço não guarda estado, então escala horizontalmente atrás de um balanceador. Roda como contêiner no Azure Container Apps ou App Service, com `GEMINI_API_KEY` e `SERVICE_API_KEY` como segredos do ambiente (ou Key Vault). O cache de explicações é em memória por instância; com várias réplicas, o passo seguinte é Redis.
+- **Nuvem:** o serviço não guarda estado, então escala horizontalmente. Está publicado na Vercel (seção abaixo); o `Dockerfile` permite rodar o mesmo código como contêiner (Azure Container Apps, App Service). O cache de explicações é em memória por instância; com várias instâncias, o passo seguinte é Redis.
+
+### Deploy na Vercel
+
+URL pública: **[preencher com a URL da Vercel]** (`/docs` abre o Swagger, `/health` mostra o modelo em uso).
+
+1. Importe o repositório na Vercel e defina **Root Directory = `rota-leve-ai`**. O framework FastAPI é detectado sozinho (`app/main.py`, variável `app`); `requirements.txt` e `.python-version` definem dependências e versão do Python.
+2. Em *Settings → Environment Variables*, cadastre `LLM_PROVIDER=grok`, `LLM_API_KEY`, `LLM_MODEL` e `SERVICE_API_KEY` (gere um valor aleatório longo e passe o mesmo para os times de Java/.NET).
+3. Faça o deploy e confira `GET /health`: o campo `ia_generativa` deve mostrar o modelo, não "desativada".
+
+Decisões para o ambiente serverless:
+- `.vercelignore` deixa fora do pacote `tests/`, `eval/`, `scripts/` e arquivos de Docker; só `app/` e `data/` vão para a função.
+- Publicado sem `SERVICE_API_KEY`, o `POST /v1/routes/rank` responde **503** em vez de ficar aberto: um endpoint público que chama o LLM gastaria créditos de quem tem a chave. `/health`, `/docs` e `/v1/demo/routes` continuam públicos porque não chamam o modelo.
+- Cada requisição explica no máximo 3 rotas, com timeout de 10 s por chamada ao modelo; se o provedor falhar, a resposta sai pelo template e a função não fica presa.
 
 ## 6. Avaliação
 
@@ -227,7 +241,7 @@ Relatório completo e reprodutível: [`eval/RESULTADOS.md`](eval/RESULTADOS.md).
 | Reordenação | rota que o app comum mostraria primeiro, julgada por perfil | não recomendada em 5 de 5 perfis; bloqueada em 2 |
 | Validador de fidelidade | 16 respostas simuladas (6 fiéis, 10 infiéis) | precisão 100% · recall 70% |
 | Falhas | LLM fora do ar, JSON inválido, nenhuma rota acessível, entradas inválidas, relato expirado, parada desconhecida | 100% das rotas seguem com explicação; entradas inválidas retornam 422 |
-| Modelo generativo real | taxa de aceitação pelo validador, latência, leitura de amostras | **[preencher: rodar `python eval/run_eval.py --live`]** |
+| Modelo generativo real (Grok) | taxa de aceitação pelo validador, latência, leitura de amostras | **[preencher: rodar `python eval/run_eval.py --live` com `LLM_API_KEY` e `LLM_MODEL`]** |
 
 **Como interpretar**
 
@@ -266,4 +280,4 @@ Relatório completo e reprodutível: [`eval/RESULTADOS.md`](eval/RESULTADOS.md).
 | Ferramenta | Para quê |
 |---|---|
 | Claude (Anthropic) | Apoio na estruturação do serviço, geração inicial de código, testes e documentação. Todo o conteúdo foi lido, executado e revisado pelo grupo. **[ajustar para refletir o que o grupo realmente fez]** |
-| Gemini API | Componente do produto (explicação das rotas), não ferramenta de desenvolvimento. |
+| Grok API (xAI) | Componente do produto (explicação das rotas), não ferramenta de desenvolvimento. |
