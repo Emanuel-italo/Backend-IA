@@ -1,0 +1,23 @@
+{
+  "_descricao": "Respostas simuladas de LLM para a rota r1-metro-se (Sé com elevador fora). 'fiel' = só usa fatos; as demais contêm uma alucinação ou contradição. Mede se o validador aceita as fiéis e barra as infiéis.",
+  "perfil": "cadeirante",
+  "rota": "r1-metro-se",
+  "casos": [
+    {"id": "f1", "fiel": true, "texto": "Esta rota não é indicada: o elevador da Estação Sé está fora de operação e o acesso é só por escada."},
+    {"id": "f2", "fiel": true, "texto": "São 22 min de viagem e 600 m de caminhada, mas a Sé está sem elevador segundo relato confirmado."},
+    {"id": "f3", "fiel": true, "texto": "Rota não recomendada para quem usa cadeira de rodas. Procure um funcionário da estação para indicar outro acesso."},
+    {"id": "f4", "fiel": true, "texto": "A caminhada total é de 600 m, dentro do limite de 600 m do perfil, porém há bloqueio na Sé."},
+    {"id": "f5", "fiel": true, "texto": "Relato confirmado por 5 pessoas indica elevador parado na Sé. Prefira outra opção da lista."},
+    {"id": "f6", "fiel": true, "texto": "Nota 25 de acessibilidade: a rota depende de um elevador que está fora de operação."},
+    {"id": "i1", "fiel": false, "tipo": "numero", "texto": "Rota rápida, de apenas 15 min, com 600 m de caminhada."},
+    {"id": "i2", "fiel": false, "tipo": "numero", "texto": "Você caminha só 200 m até a estação e depois mais 350 m."},
+    {"id": "i3", "fiel": false, "tipo": "numero", "texto": "Relato confirmado por 12 pessoas indica elevador parado."},
+    {"id": "i4", "fiel": false, "tipo": "numero", "texto": "A nota desta rota é 85, uma das melhores."},
+    {"id": "i5", "fiel": false, "tipo": "contradicao", "texto": "Rota totalmente acessível para cadeira de rodas."},
+    {"id": "i6", "fiel": false, "tipo": "contradicao", "texto": "A Estação Sé está com o elevador funcionando normalmente."},
+    {"id": "i7", "fiel": false, "tipo": "contradicao", "texto": "Pode ir tranquila, a rota não tem obstáculos."},
+    {"id": "i8", "fiel": false, "tipo": "entidade", "texto": "A rota passa pela Estação Luz, que tem elevadores novos."},
+    {"id": "i9", "fiel": false, "tipo": "parafrase", "texto": "O elevador da Sé já voltou a operar, então o acesso está liberado."},
+    {"id": "i10", "fiel": false, "tipo": "conselho", "texto": "Como você tem uma lesão na coluna, evite esta rota."}
+  ]
+}
