@@ -1,0 +1,9 @@
+{
+  "_aviso": "RELATOS SINTÉTICOS PARA DEMONSTRAÇÃO. Não descrevem a situação real de nenhum local. As horas são relativas ao momento da carga, para a demo não envelhecer. Em produção os relatos vêm da API .NET de relatos colaborativos.",
+  "relatos": [
+    {"id": "rel-001", "place_id": "station:se", "kind": "elevador_fora", "text": "Elevador de acesso à plataforma parado, com tapume.", "horas_desde_relato": 30, "horas_desde_ultima_confirmacao": 2, "confirmacoes": 5},
+    {"id": "rel-002", "place_id": "station:anhangabau", "kind": "elevador_fora", "text": "Parece que o elevador não está respondendo.", "horas_desde_relato": 3, "horas_desde_ultima_confirmacao": 3, "confirmacoes": 1},
+    {"id": "rel-003", "place_id": "calcada:ladeira-centro", "kind": "calcada_ruim", "text": "Buraco grande e piso solto no meio da calçada.", "horas_desde_relato": 20, "horas_desde_ultima_confirmacao": 20, "confirmacoes": 1},
+    {"id": "rel-004", "place_id": "station:republica", "kind": "elevador_fora", "text": "Elevador em manutenção.", "horas_desde_relato": 200, "horas_desde_ultima_confirmacao": 100, "confirmacoes": 3, "_nota": "EXPIRADO de propósito (100h > TTL 72h): deve ser ignorado"}
+  ]
+}
