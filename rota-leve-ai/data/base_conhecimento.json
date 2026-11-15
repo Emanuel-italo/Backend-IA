@@ -1,0 +1,109 @@
+{
+  "_aviso": "Base de conhecimento RESUMIDA para fins acadêmicos, escrita pelo grupo a partir das fontes indicadas em cada trecho. Antes de uso real, cada trecho deve ser conferido na fonte oficial e revisado por especialista em acessibilidade.",
+  "trechos": [
+    {
+      "id": "kb-prioridade-lei",
+      "titulo": "Atendimento prioritário e assento reservado",
+      "perfis": ["gestante", "idoso", "cadeirante", "carrinho"],
+      "palavras_chave": "direitos prioridade assento preferencial espera em pé fila",
+      "texto": "Você tem direito a atendimento prioritário e a assento reservado no transporte coletivo. A regra vale para gestantes, lactantes, pessoas com criança de colo, pessoas idosas e pessoas com deficiência. Se os assentos reservados estiverem ocupados, peça ajuda ao motorista ou a um funcionário da estação.",
+      "fonte": "Lei nº 10.048/2000 (prioridade de atendimento)"
+    },
+    {
+      "id": "kb-elevador-fora",
+      "titulo": "Elevador da estação fora de operação",
+      "perfis": ["cadeirante", "carrinho", "gestante", "idoso", "mobilidade_temporaria"],
+      "palavras_chave": "elevador quebrado parado manutenção estação funcionário ajuda",
+      "texto": "Procure um funcionário da estação antes de tentar a escada: ele pode indicar outro acesso ou acionar o apoio ao embarque. Quando o elevador da estação de destino está fora de operação, costuma ser mais seguro descer em uma estação vizinha com elevador funcionando e completar o trajeto por superfície.",
+      "fonte": "Orientação do grupo com base em boas práticas de atendimento ao passageiro"
+    },
+    {
+      "id": "kb-sem-rota-acessivel",
+      "titulo": "Quando nenhuma rota é acessível",
+      "perfis": ["cadeirante", "carrinho", "mobilidade_temporaria"],
+      "palavras_chave": "sem opção acessível bloqueio alternativa porta a porta transporte especial",
+      "texto": "Considere um transporte porta a porta quando nenhuma rota de transporte público atender ao seu perfil. Em São Paulo existe o Atende+, serviço gratuito de transporte porta a porta da Prefeitura, gerenciado pela SPTrans, que exige cadastro prévio e avaliação médica. Táxis acessíveis e corridas por aplicativo são alternativas para trajetos pontuais.",
+      "fonte": "SPTrans / Prefeitura de São Paulo — serviço Atende+ (sptrans.com.br/atende; conferir regras de elegibilidade)"
+    },
+    {
+      "id": "kb-escadas-gestante",
+      "titulo": "Escadas na gravidez",
+      "perfis": ["gestante"],
+      "palavras_chave": "escadas degraus lances corrimão gravidez grávida equilíbrio",
+      "texto": "Use sempre o corrimão e suba sem pressa se a escada for inevitável. No fim da gestação o centro de gravidade muda e o equilíbrio fica menos estável, por isso rotas com elevador ou sem degraus são preferíveis mesmo quando demoram um pouco mais.",
+      "fonte": "Orientação geral de segurança em deslocamentos; não substitui orientação do pré-natal"
+    },
+    {
+      "id": "kb-caminhada-longa",
+      "titulo": "Caminhadas longas até o ponto ou estação",
+      "perfis": ["gestante", "idoso", "mobilidade_temporaria"],
+      "palavras_chave": "caminhada longa distância a pé pausa descanso banco cansaço",
+      "texto": "Planeje pausas em locais com banco ou sombra quando a caminhada passar do seu limite confortável. Sair alguns minutos antes evita a pressa, que é quando acontecem a maior parte dos tropeços.",
+      "fonte": "Orientação do grupo"
+    },
+    {
+      "id": "kb-ladeira-rampa",
+      "titulo": "Ladeiras e rampas",
+      "perfis": ["cadeirante", "carrinho", "idoso"],
+      "palavras_chave": "ladeira subida inclinação íngreme rampa cadeira de rodas esforço",
+      "texto": "Prefira o trajeto mais plano, mesmo que seja mais longo. A norma brasileira de acessibilidade limita a inclinação de rampas a 8,33% justamente porque acima disso a subida exige esforço excessivo e a descida perde o controle para quem usa cadeira de rodas ou empurra carrinho.",
+      "fonte": "ABNT NBR 9050 (acessibilidade a edificações, mobiliário, espaços e equipamentos urbanos)"
+    },
+    {
+      "id": "kb-calcada-ruim",
+      "titulo": "Calçada com buracos ou obstáculos",
+      "perfis": ["cadeirante", "carrinho", "idoso", "mobilidade_temporaria", "gestante"],
+      "palavras_chave": "calçada buraco piso solto obstáculo degrau queda tropeço esburacada",
+      "texto": "Atravesse para a calçada oposta ou contorne pelo quarteirão vizinho em vez de descer para a rua. Pela norma de acessibilidade, a calçada deve ter uma faixa livre de circulação de pelo menos 1,20 m, sem degraus nem obstáculos; quando isso não acontece, registre um relato com foto para avisar outras pessoas.",
+      "fonte": "ABNT NBR 9050"
+    },
+    {
+      "id": "kb-ponto-sem-cobertura",
+      "titulo": "Ponto de ônibus sem cobertura ou sem banco",
+      "perfis": ["gestante", "idoso", "mobilidade_temporaria", "carrinho"],
+      "palavras_chave": "ponto de ônibus sem cobertura sem banco sol chuva espera em pé abrigo",
+      "texto": "Chegue ao ponto perto do horário previsto do ônibus para reduzir a espera em pé, no sol ou na chuva. Acompanhar a posição do veículo em tempo real ajuda a sair de casa na hora certa.",
+      "fonte": "Orientação do grupo"
+    },
+    {
+      "id": "kb-onibus-acessivel",
+      "titulo": "Embarque em ônibus com cadeira de rodas ou carrinho",
+      "perfis": ["cadeirante", "carrinho"],
+      "palavras_chave": "ônibus embarque plataforma elevatória piso baixo rampa motorista cadeira carrinho de bebê",
+      "texto": "Sinalize ao motorista que você precisa da plataforma elevatória ou da rampa antes de o ônibus parar. O embarque acessível é feito pela porta indicada com o símbolo de acessibilidade, e o veículo tem espaço reservado para cadeira de rodas.",
+      "fonte": "Orientação geral sobre frota acessível (Lei nº 10.098/2000 e normas de transporte coletivo)"
+    },
+    {
+      "id": "kb-baldeacao",
+      "titulo": "Baldeações",
+      "perfis": ["idoso", "cadeirante", "mobilidade_temporaria", "gestante", "carrinho"],
+      "palavras_chave": "baldeação troca de linha transferência conexão estação",
+      "texto": "Prefira rotas diretas quando a diferença de tempo for pequena: cada baldeação acrescenta caminhada interna, espera e mais um elevador que precisa estar funcionando.",
+      "fonte": "Orientação do grupo"
+    },
+    {
+      "id": "kb-sem-dados",
+      "titulo": "Local sem informação de acessibilidade",
+      "perfis": ["cadeirante", "carrinho", "idoso", "gestante", "mobilidade_temporaria"],
+      "palavras_chave": "sem dados sem informação confirmar canais oficiais central de atendimento",
+      "texto": "Confirme a acessibilidade do local nos canais oficiais do operador antes de sair, porque ainda não temos dados sobre ele. Se você passar por lá, um relato seu ajuda a próxima pessoa.",
+      "fonte": "Orientação do grupo"
+    },
+    {
+      "id": "kb-idoso-gratuidade",
+      "titulo": "Gratuidade para pessoas idosas",
+      "perfis": ["idoso"],
+      "palavras_chave": "idoso gratuidade passagem grátis 65 anos estatuto bilhete",
+      "texto": "Leve um documento com foto: pessoas com 65 anos ou mais têm gratuidade no transporte coletivo público urbano. Estados e municípios podem estender o benefício a partir dos 60 anos, então vale conferir a regra local.",
+      "fonte": "Estatuto da Pessoa Idosa — Lei nº 10.741/2003, art. 39"
+    },
+    {
+      "id": "kb-mobilidade-temporaria",
+      "titulo": "Muletas, bota ortopédica e pós-cirurgia",
+      "perfis": ["mobilidade_temporaria"],
+      "palavras_chave": "muleta perna engessada gesso bota ortopédica pós-cirurgia recuperação",
+      "texto": "Evite horários de pico quando puder, porque vagões e ônibus lotados dificultam o apoio de muletas e aumentam o risco de esbarrões. Escadas rolantes exigem equilíbrio na entrada e na saída; o elevador é a opção mais segura.",
+      "fonte": "Orientação geral de segurança; não substitui orientação médica"
+    }
+  ]
+}
