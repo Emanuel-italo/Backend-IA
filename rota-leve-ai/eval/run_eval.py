@@ -2,13 +2,12 @@
 
 Uso:
     python eval/run_eval.py            # offline (determinístico, sem chave)
-    python eval/run_eval.py --live     # também chama o LLM real (precisa de GEMINI_API_KEY)
+    python eval/run_eval.py --live     # também chama o LLM real (precisa de LLM_API_KEY e LLM_MODEL)
 """
 from __future__ import annotations
 
 import json
 import logging
-import os
 import statistics
 import sys
 import time
@@ -21,7 +20,8 @@ sys.path.insert(0, str(ROOT))
 from app import grounding  # noqa: E402
 from app.catalog import Catalog  # noqa: E402
 from app.explain import Explainer  # noqa: E402
-from app.llm import GeminiClient, LLMError  # noqa: E402
+from app.config import Settings  # noqa: E402
+from app.llm import LLMError, build_llm  # noqa: E402
 from app.models import Profile, Route  # noqa: E402
 from app.rag import ISSUE_QUERY, Retriever, build_query  # noqa: E402
 from app.reports import ReportStore  # noqa: E402
@@ -235,11 +235,12 @@ w("| Parada sem correspondência no catálogo | penalidade `sem_dados` + aviso, 
 
 # ---------------------------------------------------------------- 6. LLM real (opcional)
 w()
-w("## 6. IA generativa real (Gemini)")
+w("## 6. IA generativa real")
 w()
-if "--live" in sys.argv and os.getenv("GEMINI_API_KEY"):
-    model = os.getenv("LLM_MODEL", "gemini-3.6-flash")
-    llm = GeminiClient(os.environ["GEMINI_API_KEY"], model, timeout_s=20, max_retries=1)
+_live_settings = Settings(llm_timeout_s=20, llm_max_retries=1)
+llm = build_llm(_live_settings) if "--live" in sys.argv else None
+if llm is not None:
+    model = f"{_live_settings.llm_provider}/{llm.name}"
     ex = Explainer(retriever, llm, cache_size=0)
     lat, sources, reasons, samples = [], [], [], []
     for p in Profile:
@@ -268,9 +269,10 @@ if "--live" in sys.argv and os.getenv("GEMINI_API_KEY"):
     for p, rid, e in samples:
         w(f"- **{p} / {rid}** — {e.resumo} Pontos de atenção: {e.pontos_de_atencao}. Dica: {e.dica}")
 else:
-    w("**Não executado nesta geração do relatório** (sem `--live` ou sem `GEMINI_API_KEY`). "
+    w("**Não executado nesta geração do relatório** (sem `--live` ou sem `LLM_API_KEY`/`LLM_MODEL`). "
       "Rode `python eval/run_eval.py --live` com a chave do grupo para preencher esta seção com a taxa de "
       "aceitação, a latência e amostras das respostas reais.")
 
 (EVAL / "RESULTADOS.md").write_text("\n".join(out) + "\n", encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")  # console do Windows usa cp1252 por padrão
 print("\n".join(out))
