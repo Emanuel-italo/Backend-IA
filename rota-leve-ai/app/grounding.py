@@ -45,10 +45,23 @@ def _plain(text: str) -> str:
 
 def check(text: str, facts: dict, context_texts: list[str]) -> tuple[bool, str | None]:
     """Retorna (ok, motivo_da_reprovacao)."""
-    allowed = _numbers(facts) | _numbers(context_texts)
+    ok, reason = check_numbers(text, [facts, context_texts])
+    if not ok:
+        return ok, reason
+    return check_contradictions(text, facts)
+
+
+def check_numbers(text: str, sources: list) -> tuple[bool, str | None]:
+    """Todo número do texto precisa aparecer em alguma das fontes (fatos, trechos, mensagens)."""
+    allowed = _numbers(sources)
     for n in _numbers(text):
         if n not in allowed:
             return False, f"numero_nao_fundamentado:{n:g}"
+    return True, None
+
+
+def check_contradictions(text: str, facts: dict) -> tuple[bool, str | None]:
+    """O texto não pode contradizer fatos críticos de uma rota (bloqueio, elevador fora)."""
     plain = _plain(text)
     if facts.get("bloqueada_para_o_perfil"):
         for phrase in CONTRADICTIONS_IF_BLOCKED:
