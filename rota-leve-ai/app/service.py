@@ -16,6 +16,20 @@ class RouteRanker:
         self.report_store = report_store
         self.explainer = explainer
 
+    def route_facts(self, profile: Profile, routes: list[Route], reports: list[Report] | None = None,
+                    now: datetime | None = None) -> list[dict]:
+        """Fatos de cada rota, na ordem do Rota Leve. Contexto do chat (mesma fonte de verdade do score)."""
+        now = now or utcnow()
+        out = []
+        for route in routes:
+            ids = route_place_ids(route)
+            active = filter_active(reports, ids, now) if reports is not None else self.report_store.active_for(ids, now)
+            out.append({"route_id": route.id, **score_route(route, profile, self.catalog, active).facts})
+        out.sort(key=lambda f: (f["bloqueada_para_o_perfil"], -f["score"], f["duracao_min"]))
+        for pos, f in enumerate(out, start=1):
+            f["posicao"] = pos
+        return out
+
     def rank(self, profile: Profile, routes: list[Route], reports: list[Report] | None = None,
              explain: bool = True, now: datetime | None = None, max_explained: int = 3) -> RankResponse:
         now = now or utcnow()
