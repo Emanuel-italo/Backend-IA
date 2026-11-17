@@ -71,7 +71,7 @@ class GeminiClient:
                     raise LLMError(f"HTTP {resp.status_code} do provedor")
                 if resp.status_code >= 400:
                     # chave/modelo inválidos: repetir não resolve
-                    last = LLMError(f"HTTP {resp.status_code} do provedor")
+                    last = LLMError(f"HTTP {resp.status_code} do provedor: {_provider_error(resp)}")
                     break
                 return _parse(resp.json())
             except (httpx.HTTPError, LLMError, ValueError) as exc:
@@ -120,7 +120,7 @@ class OpenAICompatibleClient:
                     raise LLMError(f"HTTP {resp.status_code} do provedor")
                 if resp.status_code >= 400:
                     # chave/modelo inválidos: repetir não resolve
-                    last = LLMError(f"HTTP {resp.status_code} do provedor")
+                    last = LLMError(f"HTTP {resp.status_code} do provedor: {_provider_error(resp)}")
                     break
                 return _parse_text(_openai_text(resp.json()))
             except (httpx.HTTPError, LLMError, ValueError) as exc:
@@ -128,6 +128,16 @@ class OpenAICompatibleClient:
                 if attempt < attempts:
                     time.sleep(0.5 * attempt)
         raise LLMError(f"Falha ao chamar o modelo: {type(last).__name__}: {last}")
+
+
+def _provider_error(resp: httpx.Response) -> str:
+    """Mensagem de erro do provedor (ex.: "model not found"), curta, para o log. Não contém a chave."""
+    try:
+        err = resp.json().get("error")
+        msg = err.get("message") if isinstance(err, dict) else err
+    except (ValueError, AttributeError):
+        msg = None
+    return str(msg or resp.text or "sem detalhe")[:200]
 
 
 def build_llm(s: "Settings") -> LLMClient | None:

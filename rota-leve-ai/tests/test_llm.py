@@ -150,3 +150,10 @@ def test_build_llm_escolhe_provedor():
     assert build_llm(Settings(llm_api_key="k", llm_model="")) is None
     assert isinstance(build_llm(Settings(llm_api_key="k", llm_model="m", llm_provider="groq")), OpenAICompatibleClient)
     assert isinstance(build_llm(Settings(llm_api_key="k", llm_model="m", llm_provider="gemini")), _G)
+
+
+def test_groq_404_mostra_motivo_do_provedor_sem_vazar_chave():
+    body = {"error": {"message": "The model `xyz` does not exist", "code": "model_not_found"}}
+    with pytest.raises(LLMError) as exc:
+        groq(lambda req: httpx.Response(404, json=body), retries=2).generate_json("s", "u")
+    assert "does not exist" in str(exc.value) and "chave-de-teste" not in str(exc.value)
