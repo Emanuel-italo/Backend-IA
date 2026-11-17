@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Profile(str, Enum):
@@ -63,6 +63,40 @@ class RankRequest(BaseModel):
     # Relatos opcionais; se ausente, o serviço usa a base local de relatos.
     reports: list[Report] | None = None
     explain: bool = True
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=1000)
+
+
+class ChatRequest(BaseModel):
+    profile: Profile
+    # Conversa completa enviada pelo app (o serviço não guarda histórico). A última é a pergunta atual.
+    messages: list[ChatMessage] = Field(..., min_length=1, max_length=20)
+    # Rotas que a pessoa está vendo; dão contexto às respostas. Opcional.
+    routes: list[Route] | None = Field(None, max_length=10)
+    reports: list[Report] | None = None
+
+    @model_validator(mode="after")
+    def _ultima_e_do_usuario(self) -> "ChatRequest":
+        if self.messages[-1].role != "user":
+            raise ValueError("A última mensagem precisa ser do usuário (role=user).")
+        return self
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    # llm = gerada pelo modelo e validada | template = sem LLM | template_fallback = LLM falhou/reprovou
+    source: Literal["llm", "template", "template_fallback"]
+    fallback_reason: str | None = None
+    out_of_scope: bool = False
+    routes_cited: list[str] = Field(default_factory=list)
+    kb_refs: list[str] = Field(default_factory=list)
+    notice: str = (
+        "Assistente com IA: as respostas podem conter erros. Confirme a situação de elevadores e acessos "
+        "nos canais oficiais. Não informe dados pessoais na conversa."
+    )
 
 
 class ScoreItem(BaseModel):
