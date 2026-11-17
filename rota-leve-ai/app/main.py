@@ -11,10 +11,11 @@ from fastapi.responses import RedirectResponse
 
 from .adapters.directions import routes_from_directions
 from .catalog import Catalog
+from .chat import ChatAssistant
 from .config import Settings, get_settings
 from .explain import Explainer
 from .llm import build_llm
-from .models import RankRequest, RankResponse, Route
+from .models import ChatRequest, ChatResponse, RankRequest, RankResponse, Route
 from .rag import Retriever
 from .reports import ReportStore
 from .service import RouteRanker
@@ -83,3 +84,16 @@ def rank_routes(req: RankRequest) -> RankResponse:
     if len(routes) > 10:
         raise HTTPException(status_code=422, detail="Máximo de 10 rotas por requisição.")
     return ranker.rank(req.profile, routes, reports=req.reports, explain=req.explain)
+
+
+@app.post("/v1/chat", response_model=ChatResponse, dependencies=[Depends(require_api_key)])
+def chat(req: ChatRequest) -> ChatResponse:
+    """Assistente conversacional sobre as rotas exibidas e acessibilidade no transporte.
+
+    O app envia a conversa inteira em `messages` (o serviço não guarda histórico) e, opcionalmente, as rotas
+    que a pessoa está vendo em `routes`, para que as respostas usem os mesmos fatos do score.
+    """
+    ranker = get_ranker()
+    facts = ranker.route_facts(req.profile, req.routes, reports=req.reports) if req.routes else []
+    assistant = ChatAssistant(ranker.explainer.retriever, ranker.explainer.llm)
+    return assistant.reply(req.profile, req.messages, facts)
