@@ -1,10 +1,3 @@
-"""Score de acessibilidade (0-100) por perfil de mobilidade.
-
-Decisão de projeto: o score é DETERMINÍSTICO e EXPLICÁVEL (regras ponderadas por perfil), não um modelo
-treinado. Motivo: não existe base rotulada real de "rota boa/ruim por perfil"; treinar em dados sintéticos
-daria uma falsa impressão de aprendizado. Regras transparentes permitem auditar cada ponto perdido e
-servem de "fatos" para a IA generativa explicar sem inventar.
-"""
 from __future__ import annotations
 
 import math
@@ -19,9 +12,9 @@ from .reports import is_confirmed, weight
 class ProfileRules:
     label: str
     max_walk_m: int
-    walk_over_per_100m: int  # penalidade a cada 100 m acima do limite
-    stairs_per_flight: int  # penalidade por lance de escada (quando não há elevador)
-    needs_step_free: bool  # True => escada sem elevador BLOQUEIA a rota
+    walk_over_per_100m: int
+    stairs_per_flight: int
+    needs_step_free: bool
     slope_steep: int
     no_seat: int
     no_cover: int
@@ -50,7 +43,7 @@ class ScoreResult:
     blocking: bool
     breakdown: list[ScoreItem]
     walk_m: int
-    facts: dict  # fatos estruturados que alimentam a IA generativa (única fonte de verdade)
+    facts: dict
 
 
 def route_place_ids(route: Route) -> set[str]:
@@ -81,7 +74,7 @@ def score_route(route: Route, profile: Profile, catalog: Catalog, active_reports
         if pts != 0:
             items.append(ScoreItem(code=code, points=pts, detail=detail))
 
-    # 1) Caminhada total
+    # 1 - caminhada
     walk_m = sum(l.distance_m for l in route.legs if l.mode == "WALK")
     if walk_m > rules.max_walk_m:
         over = walk_m - rules.max_walk_m
@@ -91,7 +84,7 @@ def score_route(route: Route, profile: Profile, catalog: Catalog, active_reports
             f"{walk_m} m de caminhada, acima do limite de {rules.max_walk_m} m do perfil",
         )
 
-    # 2) Trechos a pé: inclinação e relatos de calçada
+    # 2 - trechos a pe (subida e calcada ruim)
     for leg in route.legs:
         if leg.mode != "WALK":
             continue
@@ -107,7 +100,7 @@ def score_route(route: Route, profile: Profile, catalog: Catalog, active_reports
                     blocking = True
                     add("bloqueio", -BLOCK_PENALTY, "calçada intransitável para este perfil (relato confirmado)")
 
-    # 3) Estações e pontos usados para embarque/desembarque
+    # 3 - estacoes e pontos
     used: list[str | None] = []
     for leg in route.legs:
         if leg.mode in TRANSIT:
@@ -144,20 +137,20 @@ def score_route(route: Route, profile: Profile, catalog: Catalog, active_reports
                         f"{place.name}: {why}, {place.stairs_flights} lances de escada",
                     )
             elif elev_reports and not confirmed_out:
-                # relato ainda não confirmado: avisa e penaliza pela metade, sem bloquear
+                # so 1 confirmacao: tira metade dos pontos e nao bloqueia
                 base = BLOCK_PENALTY / 2 if rules.needs_step_free else rules.stairs_per_flight * place.stairs_flights
                 add("elevador_incerto", -base * 0.5, f"{place.name}: elevador com relato de falha ainda não confirmado")
             for r in reps:
                 if r.kind == ReportKind.ESCADA_ROLANTE_FORA and not rules.needs_step_free and not place.has_elevator:
                     add("escada_rolante", -rules.stairs_per_flight * weight(r), f"{place.name}: escada rolante parada ({_status(r)})")
-        else:  # ponto de ônibus
+        else:
             no_cover = (not place.covered) or any(r.kind == ReportKind.SEM_COBERTURA for r in reps)
             if no_cover:
                 add("sem_cobertura", -rules.no_cover, f"{place.name}: ponto sem cobertura")
             if not place.seating:
                 add("sem_assento", -rules.no_seat, f"{place.name}: ponto sem banco")
 
-    # 4) Baldeações
+    # 4 - baldeacoes
     transit_legs = [l for l in route.legs if l.mode in TRANSIT]
     transfers = max(0, len(transit_legs) - 1)
     if transfers:
