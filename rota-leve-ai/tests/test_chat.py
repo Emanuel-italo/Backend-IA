@@ -94,6 +94,21 @@ def test_historico_vai_no_prompt_e_e_limitado(retriever, facts):
     assert "mensagem antiga 11" in llm.last_user and "mensagem antiga 0" not in llm.last_user
 
 
+def test_id_interno_da_rota_nao_aparece_no_texto(retriever, facts):
+    top = facts[0]
+    llm = FakeLLM({"resposta": f"A rota com menos caminhada é {top['rota']} ({top['route_id']}), "
+                               f"com {top['caminhada_m']} m a pé.", "rotas_citadas": [top["route_id"]]})
+    r = ChatAssistant(retriever, llm).reply(Profile.GESTANTE, ask("Qual rota tem menos caminhada?"), facts)
+    assert top["route_id"] not in r.reply and r.routes_cited == [top["route_id"]]
+    assert r.reply == f"A rota com menos caminhada é {top['rota']}, com {top['caminhada_m']} m a pé."
+
+
+def test_remocao_do_id_preserva_a_pontuacao():
+    from app.chat import _strip_route_ids
+    assert _strip_route_ids("Vá pelo ônibus [r2] , ele é melhor .", ["r2"]) == "Vá pelo ônibus, ele é melhor."
+    assert _strip_route_ids("Prefira `r2`!", ["r2"]) == "Prefira!"
+
+
 # ---------------------------------------------------------------- endpoint
 @pytest.fixture()
 def client(monkeypatch):

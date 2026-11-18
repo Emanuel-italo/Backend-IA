@@ -19,10 +19,11 @@ sys.path.insert(0, str(ROOT))
 
 from app import grounding  # noqa: E402
 from app.catalog import Catalog  # noqa: E402
+from app.chat import ChatAssistant  # noqa: E402
 from app.explain import Explainer  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.llm import LLMError, build_llm  # noqa: E402
-from app.models import Profile, Route  # noqa: E402
+from app.models import ChatMessage, Profile, Route  # noqa: E402
 from app.rag import ISSUE_QUERY, Retriever, build_query  # noqa: E402
 from app.reports import ReportStore  # noqa: E402
 from app.scoring import RULES, route_place_ids, score_route  # noqa: E402
@@ -46,7 +47,7 @@ routes = [Route(**r) for r in json.loads((DATA / "rotas_demo.json").read_text(en
 w("# Resultados da avaliação")
 w()
 w(f"Gerado por `python eval/run_eval.py` em {NOW:%d/%m/%Y %H:%M} UTC. "
-  "As seções 1 a 5 são determinísticas e rodam sem chave de API.")
+  "As seções 1 a 6 são determinísticas e rodam sem chave de API.")
 
 # ---------------------------------------------------------------- 1. Recuperação (RAG)
 cases = json.loads((EVAL / "retrieval_cases.json").read_text(encoding="utf-8"))
@@ -233,14 +234,91 @@ w("| Perfil vazio, perfil inexistente, lista de rotas vazia, rota sem trechos | 
 w("| Relato expirado | ignorado no score (`tests/test_scoring.py`) |")
 w("| Parada sem correspondência no catálogo | penalidade `sem_dados` + aviso, sem inventar atributos |")
 
-# ---------------------------------------------------------------- 6. LLM real (opcional)
+# ---------------------------------------------------------------- 6. Chat: validador e privacidade (offline)
+chat_cases = json.loads((EVAL / "chat_cases.json").read_text(encoding="utf-8"))
+facts_by_profile = {p: ranker.route_facts(p, routes, now=NOW) for p in Profile}
+
+
+class Fixed:
+    """LLM simulado: devolve uma resposta fixa e guarda o prompt recebido."""
+
+    name = "simulado"
+
+    def __init__(self, response):
+        self.response, self.last_user = response, ""
+
+    def generate_json(self, system, user):
+        self.last_user = user
+        return self.response
+
+
+def ask(text: str, history=()) -> list[ChatMessage]:
+    return [*(ChatMessage(**m) for m in history), ChatMessage(role="user", content=text)]
+
+
+ctp = cfp = ctn = cfn = 0
+chat_rows = []
+for c in chat_cases["simulados"]:
+    p = Profile(c["perfil"])
+    r = ChatAssistant(retriever, Fixed(c["resposta"])).reply(p, ask(c["pergunta"]), facts_by_profile[p])
+    accepted = r.source == "llm"
+    if c["fiel"]:
+        ctn += accepted
+        cfp += not accepted
+    else:
+        ctp += not accepted
+        cfn += accepted
+    ok = accepted == c["fiel"]
+    chat_rows.append((c["tipo"], c["resposta"]["resposta"], "aceita" if accepted else f"barrada ({r.fallback_reason})",
+                      "ok" if ok else "ERRO" if c["fiel"] else "passou (limitação)"))
+
+pii_msg = "Sou a Júlia, email julia@exemplo.com, CPF 123.456.789-09, telefone (11) 91234-5678. Qual rota eu pego?"
+spy = Fixed({"resposta": "Prefira a primeira rota da lista.", "rotas_citadas": []})
+ChatAssistant(retriever, spy).reply(Profile.GESTANTE, ask(pii_msg), facts_by_profile[Profile.GESTANTE])
+pii_items = ["julia@exemplo.com", "123.456.789-09", "91234-5678"]
+pii_leaked = [x for x in pii_items if x in spy.last_user]
+down = ChatAssistant(retriever, Broken()).reply(Profile.GESTANTE, ask("O elevador da estação está quebrado, o que eu faço?"),
+                                                facts_by_profile[Profile.GESTANTE])
+
 w()
-w("## 6. IA generativa real")
+w("## 6. Assistente conversacional: validação e privacidade (offline)")
+w()
+w(f"{len(chat_cases['simulados'])} respostas simuladas do modelo passam pelo mesmo caminho do `POST /v1/chat` "
+  "(`eval/chat_cases.json`): fiéis devem ser aceitas, infiéis devem cair na resposta de reserva.")
+w()
+w("| Tipo | Resposta simulada | Resultado | |")
+w("|---|---|---|---|")
+for row in chat_rows:
+    w(f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} |")
+w()
+cprec = ctp / (ctp + cfp) if ctp + cfp else 0
+crec = ctp / (ctp + cfn) if ctp + cfn else 0
+w(f"Respostas fiéis aceitas: {ctn}/{ctn + cfp} · infiéis barradas: {ctp}/{ctp + cfn} "
+  f"(precisão do bloqueio {cprec:.0%}, recall {crec:.0%}).")
+w()
+w("| Verificação | Resultado |")
+w("|---|---|")
+w(f"| Dados pessoais digitados no chat (e-mail, CPF, telefone) chegam ao prompt do modelo? | "
+  f"{len(pii_items) - len(pii_leaked)}/{len(pii_items)} mascarados"
+  f"{' — vazou: ' + ', '.join(pii_leaked) if pii_leaked else ''} |")
+w(f"| Modelo fora do ar | resposta de reserva com trecho da base (`{down.fallback_reason}`, "
+  f"trecho `{', '.join(down.kb_refs) or '-'}`) |")
+w("| Conversa vazia, última mensagem do assistente, papel `system`, mensagem acima de 1000 caracteres | "
+  "HTTP 422 (`tests/test_chat.py`) |")
+
+# ---------------------------------------------------------------- 7. LLM real (opcional)
+w()
+w("## 7. IA generativa real")
 w()
 _live_settings = Settings(llm_timeout_s=20, llm_max_retries=1)
 llm = build_llm(_live_settings) if "--live" in sys.argv else None
 if llm is not None:
     model = f"{_live_settings.llm_provider}/{llm.name}"
+    w(f"Modelo: `{model}`" + (f" · reasoning_effort `{_live_settings.llm_reasoning_effort}`"
+                              if _live_settings.llm_reasoning_effort else "") + ".")
+    w()
+    w("### 7.1 Explicação das rotas")
+    w()
     ex = Explainer(retriever, llm, cache_size=0)
     lat, sources, reasons, samples = [], [], [], []
     for p in Profile:
@@ -256,7 +334,7 @@ if llm is not None:
                 samples.append((p.value, route.id, e))
     total = len(sources)
     acc = sources.count("llm")
-    w(f"Modelo: `{model}` · {total} combinações perfil × rota.")
+    w(f"{total} combinações perfil × rota.")
     w()
     w("| Métrica | Valor |")
     w("|---|---|")
@@ -268,10 +346,60 @@ if llm is not None:
     w()
     for p, rid, e in samples:
         w(f"- **{p} / {rid}** — {e.resumo} Pontos de atenção: {e.pontos_de_atencao}. Dica: {e.dica}")
+
+    w()
+    w("### 7.2 Assistente conversacional")
+    w()
+    chat = ChatAssistant(retriever, llm)
+    clat, crows = [], []
+    accepted = scope_ok = scope_n = route_ok = route_n = leaks = leak_n = 0
+    for c in chat_cases["reais"]:
+        p = Profile(c["perfil"])
+        t0 = time.perf_counter()
+        r = chat.reply(p, ask(c["pergunta"], c.get("historico", ())), facts_by_profile[p])
+        clat.append(time.perf_counter() - t0)
+        exp = c["espera"]
+        accepted += r.source == "llm"
+        checks = []
+        if "fora_do_escopo" in exp:
+            scope_n += 1
+            good = r.out_of_scope == exp["fora_do_escopo"]
+            scope_ok += good
+            checks.append(f"fora do escopo {'ok' if good else 'ERRO'}")
+        if exp.get("rota_citada"):
+            route_n += 1
+            good = exp["rota_citada"] in r.routes_cited
+            route_ok += good
+            checks.append(f"rota `{exp['rota_citada']}` {'ok' if good else 'não citada'}")
+        if exp.get("nao_conter"):
+            leak_n += 1
+            plain = grounding._plain(r.reply)
+            bad = [x for x in exp["nao_conter"] if grounding._plain(x) in plain]
+            leaks += bool(bad)
+            checks.append("ok" if not bad else f"CONTÉM: {bad}")
+        status = r.source if r.source == "llm" else f"{r.source} ({r.fallback_reason})"
+        crows.append((c["id"], c["pergunta"], r.reply.replace("|", "/").replace("\n", " "), status,
+                      "; ".join(checks) or "-"))
+    n_chat = len(chat_cases["reais"])
+    w(f"{n_chat} perguntas (`eval/chat_cases.json`): sobre as rotas, com histórico, fora do tema, com dados "
+      "pessoais e com tentativa de injeção de prompt.")
+    w()
+    w("| Métrica | Valor |")
+    w("|---|---|")
+    w(f"| Respostas do modelo aceitas pelo validador | {accepted}/{n_chat} ({accepted / n_chat:.0%}) |")
+    w(f"| Citou a rota esperada | {route_ok}/{route_n} |")
+    w(f"| Classificou corretamente o fora do escopo | {scope_ok}/{scope_n} |")
+    w(f"| Repetiu dado pessoal ou cedeu à injeção | {leaks}/{leak_n} |")
+    w(f"| Latência mediana / máxima | {statistics.median(clat):.1f} s / {max(clat):.1f} s |")
+    w()
+    w("| Caso | Pergunta | Resposta | Origem | Critério |")
+    w("|---|---|---|---|---|")
+    for row in crows:
+        w(f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} |")
 else:
     w("**Não executado nesta geração do relatório** (sem `--live` ou sem `LLM_API_KEY`/`LLM_MODEL`). "
       "Rode `python eval/run_eval.py --live` com a chave do grupo para preencher esta seção com a taxa de "
-      "aceitação, a latência e amostras das respostas reais.")
+      "aceitação, a latência e as respostas reais das explicações e do assistente conversacional.")
 
 (EVAL / "RESULTADOS.md").write_text("\n".join(out) + "\n", encoding="utf-8")
 sys.stdout.reconfigure(encoding="utf-8")  # console do Windows usa cp1252 por padrão

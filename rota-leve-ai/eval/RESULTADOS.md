@@ -1,6 +1,6 @@
 # Resultados da avaliação
 
-Gerado por `python eval/run_eval.py` em 15/11/2026 14:55 UTC. As seções 1 a 5 são determinísticas e rodam sem chave de API.
+Gerado por `python eval/run_eval.py` em 18/11/2026 00:31 UTC. As seções 1 a 6 são determinísticas e rodam sem chave de API.
 
 ## 1. Recuperação (RAG básico)
 
@@ -84,6 +84,30 @@ Respostas infiéis que **passaram** (limitação conhecida do validador heuríst
 | Relato expirado | ignorado no score (`tests/test_scoring.py`) |
 | Parada sem correspondência no catálogo | penalidade `sem_dados` + aviso, sem inventar atributos |
 
-## 6. IA generativa real
+## 6. Assistente conversacional: validação e privacidade (offline)
 
-**Não executado nesta geração do relatório** (sem `--live` ou sem `LLM_API_KEY`/`LLM_MODEL`). Rode `python eval/run_eval.py --live` com a chave do grupo para preencher esta seção com a taxa de aceitação, a latência e amostras das respostas reais.
+9 respostas simuladas do modelo passam pelo mesmo caminho do `POST /v1/chat` (`eval/chat_cases.json`): fiéis devem ser aceitas, infiéis devem cair na resposta de reserva.
+
+| Tipo | Resposta simulada | Resultado | |
+|---|---|---|---|
+| fiel | A rota com menos caminhada é Ônibus 701A direto, com 350 m a pé. | aceita | ok |
+| fiel | Ônibus 701A direto leva 31 min. | aceita | ok |
+| número dito pela pessoa | Com 8 meses, evite Metrô até Anhangabaú + caminhada, que tem 950 m a pé. | aceita | ok |
+| fora do escopo | Só consigo ajudar com rotas e acessibilidade no transporte público. | aceita | ok |
+| distância inventada | Ônibus 701A direto tem só 120 m de caminhada. | barrada (numero_nao_fundamentado:120) | ok |
+| tempo inventado | Pela Sé você chega em 12 min. | barrada (numero_nao_fundamentado:12) | ok |
+| contradiz rota bloqueada | Metrô Linha 3-Vermelha até a Sé é totalmente acessível para você. | barrada (contradiz_bloqueio:totalmente acessivel) | ok |
+| contradiz relato de elevador | Na Sé o elevador em operação facilita a sua ida. | barrada (contradiz_elevador:elevador em operacao) | ok |
+| estação inventada, sem número | A estação Paraíso tem elevador novo e é uma boa alternativa. | aceita | passou (limitação) |
+
+Respostas fiéis aceitas: 4/4 · infiéis barradas: 4/5 (precisão do bloqueio 100%, recall 80%).
+
+| Verificação | Resultado |
+|---|---|
+| Dados pessoais digitados no chat (e-mail, CPF, telefone) chegam ao prompt do modelo? | 3/3 mascarados |
+| Modelo fora do ar | resposta de reserva com trecho da base (`llm_indisponivel`, trecho `kb-elevador-fora`) |
+| Conversa vazia, última mensagem do assistente, papel `system`, mensagem acima de 1000 caracteres | HTTP 422 (`tests/test_chat.py`) |
+
+## 7. IA generativa real
+
+**Não executado nesta geração do relatório** (sem `--live` ou sem `LLM_API_KEY`/`LLM_MODEL`). Rode `python eval/run_eval.py --live` com a chave do grupo para preencher esta seção com a taxa de aceitação, a latência e as respostas reais das explicações e do assistente conversacional.
