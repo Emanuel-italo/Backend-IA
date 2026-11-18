@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -12,10 +11,9 @@ from .rag import Hit, Retriever
 
 log = logging.getLogger("rota_leve.chat")
 
-MAX_HISTORICO = 8         # quantas mensagens anteriores vão para o prompt
+MAX_HISTORICO = 8
 MAX_TAMANHO_RESPOSTA = 900
 
-# Campos dos fatos de cada rota que o modelo pode usar
 CAMPOS_DA_ROTA = ("route_id", "posicao", "rota", "score", "classificacao", "duracao_min", "caminhada_m",
                   "baldeacoes", "bloqueada_para_o_perfil", "elevadores_com_relato", "problemas")
 
@@ -39,14 +37,13 @@ REGRAS OBRIGATÓRIAS
 Responda APENAS com JSON:
 {"resposta": "texto", "rotas_citadas": ["route_id"], "fora_do_escopo": false}"""
 
-# Padrões de dados pessoais que a pessoa pode digitar sem querer (LGPD)
+# regex pra achar email, cpf e telefone (LGPD)
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 CPF = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
 TELEFONE = re.compile(r"\(?\b\d{2}\)?\s?9?\d{4}[-\s]?\d{4}\b")
 
 
 def redact(texto: str) -> str:
-    """Troca e-mail, CPF e telefone por marcadores antes de enviar ao modelo."""
     texto = EMAIL.sub("[email]", texto)
     texto = CPF.sub("[cpf]", texto)
     return TELEFONE.sub("[telefone]", texto)
@@ -59,16 +56,16 @@ class ChatAssistant:
         self.top_k = top_k
 
     def reply(self, profile: Profile, messages: list[ChatMessage], route_facts: list[dict]) -> ChatResponse:
-        # 1. Dados pessoais escondidos
+        # 1 - esconde os dados pessoais
         msgs = [ChatMessage(role=m.role, content=redact(m.content)) for m in messages]
         pergunta = msgs[-1].content
 
-        # 2. RAG com a pergunta da pessoa
+        # 2 - busca na base (RAG)
         hits = self.retriever.search(pergunta, profile, self.top_k)
         if self.llm is None:
             return resposta_de_reserva(hits, "template", None)
 
-        # 3. Prompt
+        # 3 - monta o prompt
         rotas = [{k: f[k] for k in CAMPOS_DA_ROTA if k in f} for f in route_facts]
         contexto = [{"titulo": h.chunk.titulo, "texto": h.chunk.texto} for h in hits]
         historico = [{"role": m.role, "content": m.content} for m in msgs[:-1][-MAX_HISTORICO:]]
@@ -78,7 +75,7 @@ class ChatAssistant:
                 f"HISTÓRICO:\n{json.dumps(historico, ensure_ascii=False)}\n\n"
                 f"PERGUNTA ATUAL:\n{pergunta}")
 
-        # 4. Chamada ao modelo
+        # 4 - chama o modelo
         try:
             raw = self.llm.generate_json(SYSTEM_PROMPT, user)
             texto = str(raw["resposta"]).strip()
@@ -94,13 +91,13 @@ class ChatAssistant:
         if not texto or len(texto) > MAX_TAMANHO_RESPOSTA:
             return resposta_de_reserva(hits, "template_fallback", "formato_invalido")
 
-        # Só aceita ids de rotas que existem, e tira o id do texto caso o modelo tenha escrito
+        # tira o id da rota do texto caso o modelo escreva
         fatos_por_id = {f["route_id"]: f for f in route_facts}
         citadas = [r for r in dict.fromkeys(citadas) if r in fatos_por_id]
         for rid in fatos_por_id:
             texto = texto.replace(f" ({rid})", "").replace(f"({rid})", "").replace(rid, "")
 
-        # 5. Validação: números só das rotas, dos trechos ou da própria pessoa; sem contradizer as rotas citadas
+        # 5 - confere se a resposta nao inventou nada
         textos_da_pessoa = [m.content for m in msgs if m.role == "user"]
         ok, motivo = grounding.check_numbers(texto, [rotas, [h.chunk.texto for h in hits], textos_da_pessoa])
         for rid in citadas:
@@ -115,11 +112,10 @@ class ChatAssistant:
 
 
 def resposta_de_reserva(hits: list[Hit], source: str, motivo: str | None) -> ChatResponse:
-    """Resposta sem IA: o trecho mais relevante da base, ou um aviso honesto."""
     if hits:
         texto = f"Não consegui gerar uma resposta agora, mas encontrei esta orientação: {hits[0].chunk.texto}"
     else:
         texto = ("Não consegui responder agora. Veja a nota e os detalhes de cada rota na lista, "
                  "ou tente de novo em instantes.")
-    return ChatResponse(reply=texto, source=source, fallback_reason=motivo,  # type: ignore[arg-type]
+    return ChatResponse(reply=texto, source=source, fallback_reason=motivo,
                         kb_refs=[h.chunk.id for h in hits[:1]])
