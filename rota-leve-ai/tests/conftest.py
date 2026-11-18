@@ -42,8 +42,6 @@ def ranker(catalog, store, retriever):
 
 
 class FakeLLM:
-    """LLM falso para testes: devolve uma resposta fixa ou lança erro."""
-
     name = "fake"
 
     def __init__(self, response=None, error=None):
