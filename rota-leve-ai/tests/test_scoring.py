@@ -1,4 +1,3 @@
-"""Testes da nota de acessibilidade (regras por perfil, sem IA)."""
 from app.models import Profile
 from tests.conftest import NOW
 
@@ -22,7 +21,7 @@ def test_elevador_quebrado_bloqueia_a_rota_para_cadeirante_e_ela_vai_para_o_fim(
 
 
 def test_relato_expirado_e_ignorado(ranker, routes):
-    # O relato da estação República expirou: a rota r3 não pode perder pontos por ele
+    # o relato da republica ja expirou
     r3 = por_id(ranker.rank(Profile.CADEIRANTE, routes, now=NOW, explain=False))["r3-metro-onibus"]
     assert not r3.blocking
     assert all(b.code != "elevador_incerto" for b in r3.breakdown)
