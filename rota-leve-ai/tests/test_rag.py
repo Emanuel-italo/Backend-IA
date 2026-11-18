@@ -1,4 +1,3 @@
-"""Testes do RAG: a busca precisa achar o trecho certo e não devolver nada para perguntas sem relação."""
 from app.models import Profile
 
 
