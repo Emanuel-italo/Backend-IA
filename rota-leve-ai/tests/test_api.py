@@ -1,4 +1,3 @@
-"""Testes dos endpoints, chamando a API como o front chamaria (sem chave da Groq: modo template)."""
 import json
 from pathlib import Path
 
@@ -39,8 +38,8 @@ def test_sem_chave_ou_com_chave_errada_responde_401(api):
 
 
 @pytest.mark.parametrize("corpo", [
-    {"profile": "astronauta", "routes": ROTAS},  # perfil que não existe
-    {"profile": "gestante", "routes": []},       # nenhuma rota
+    {"profile": "astronauta", "routes": ROTAS},  # perfil que nao existe
+    {"profile": "gestante", "routes": []},  # sem rota
 ])
 def test_entrada_invalida_responde_422(api, corpo):
     assert api.post("/v1/routes/rank", json=corpo, headers=CHAVE).status_code == 422
