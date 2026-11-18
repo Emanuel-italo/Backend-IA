@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from typing import TYPE_CHECKING, Protocol
 
@@ -86,10 +87,15 @@ class OpenAICompatibleClient:
 
     DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"
 
+    OPTIONAL_PARAMS = ("response_format", "reasoning_effort")
+
     def __init__(self, api_key: str, model: str, base_url: str = DEFAULT_BASE_URL, timeout_s: float = 10,
-                 max_retries: int = 1, transport: httpx.BaseTransport | None = None):
+                 max_retries: int = 1, transport: httpx.BaseTransport | None = None,
+                 reasoning_effort: str | None = None):
         self.name = model
         self._model = model
+        # Modelos de raciocínio (ex.: openai/gpt-oss-*): "low" responde rápido e gasta menos cota de tokens.
+        self._reasoning_effort = reasoning_effort
         self._url = base_url.rstrip("/") + "/chat/completions"
         self._max_retries = max_retries
         self._client = httpx.Client(
@@ -103,6 +109,8 @@ class OpenAICompatibleClient:
             "max_tokens": 2048,
             "response_format": {"type": "json_object"},
         }
+        if self._reasoning_effort:
+            body["reasoning_effort"] = self._reasoning_effort
         last: Exception | None = None
         attempts = self._max_retries + 1
         attempt = 0
@@ -110,10 +118,13 @@ class OpenAICompatibleClient:
             attempt += 1
             try:
                 resp = self._client.post(self._url, json=body)
-                if resp.status_code == 400 and "response_format" in body:
-                    # Nem todo modelo aceita `response_format`: tenta de novo só com o prompt
-                    # (o prompt já exige JSON e o parser tolera cercas de código).
-                    body.pop("response_format")
+                if resp.status_code == 400 and any(k in body for k in self.OPTIONAL_PARAMS):
+                    # Nem todo modelo aceita `response_format`/`reasoning_effort`: tenta de novo só com o
+                    # prompt (o prompt já exige JSON e o parser tolera cercas de código e raciocínio).
+                    log.warning("Provedor recusou parâmetros opcionais (%s); repetindo sem eles.",
+                                _provider_error(resp))
+                    for k in self.OPTIONAL_PARAMS:
+                        body.pop(k, None)
                     attempts += 1
                     continue
                 if resp.status_code in RETRYABLE:
@@ -149,7 +160,8 @@ def build_llm(s: "Settings") -> LLMClient | None:
         return None
     if s.llm_provider == "gemini":
         return GeminiClient(s.llm_api_key, s.llm_model, s.llm_timeout_s, s.llm_max_retries)
-    return OpenAICompatibleClient(s.llm_api_key, s.llm_model, s.llm_base_url, s.llm_timeout_s, s.llm_max_retries)
+    return OpenAICompatibleClient(s.llm_api_key, s.llm_model, s.llm_base_url, s.llm_timeout_s, s.llm_max_retries,
+                                  reasoning_effort=s.llm_reasoning_effort)
 
 
 def _openai_text(payload: dict) -> str:
@@ -170,14 +182,25 @@ def _parse(payload: dict) -> dict:
     return _parse_text(text)
 
 
+_THINK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
 def _parse_text(text: str) -> dict:
-    text = text.strip()
+    # Modelos de raciocínio podem devolver "<think>...</think>" antes da resposta: descartamos.
+    text = _THINK.sub("", text).strip()
     if text.startswith("```"):
         text = text.strip("`").removeprefix("json").strip()
     try:
         data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise LLMError("Modelo não retornou JSON válido") from exc
+    except json.JSONDecodeError:
+        # Último recurso: o primeiro objeto JSON dentro do texto (ex.: "Claro! {...}").
+        start, end = text.find("{"), text.rfind("}")
+        try:
+            data = json.loads(text[start:end + 1]) if 0 <= start < end else None
+        except json.JSONDecodeError:
+            data = None
+        if data is None:
+            raise LLMError("Modelo não retornou JSON válido")
     if not isinstance(data, dict):
         raise LLMError("JSON do modelo não é um objeto")
     return data

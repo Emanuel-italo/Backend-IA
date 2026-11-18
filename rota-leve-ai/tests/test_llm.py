@@ -157,3 +157,28 @@ def test_groq_404_mostra_motivo_do_provedor_sem_vazar_chave():
     with pytest.raises(LLMError) as exc:
         groq(lambda req: httpx.Response(404, json=body), retries=2).generate_json("s", "u")
     assert "does not exist" in str(exc.value) and "chave-de-teste" not in str(exc.value)
+
+
+@pytest.mark.parametrize("text", [
+    '<think>A pessoa é gestante, então...</think>\n{"resumo": "ok"}',
+    'Claro! Aqui está: {"resumo": "ok"} Espero ter ajudado.',
+])
+def test_groq_tolera_raciocinio_e_texto_em_volta_do_json(text):
+    assert groq(lambda req: httpx.Response(200, json=openai_ok(text))).generate_json("s", "u") == {"resumo": "ok"}
+
+
+def test_reasoning_effort_e_enviado_e_removido_se_o_modelo_recusar():
+    bodies = []
+
+    def handler(req):
+        body = json.loads(req.content)
+        bodies.append(body)
+        if "reasoning_effort" in body:
+            return httpx.Response(400, json={"error": {"message": "reasoning_effort not supported"}})
+        return httpx.Response(200, json=openai_ok('{"resumo": "ok"}'))
+
+    c = OpenAICompatibleClient("k", "m", timeout_s=1, max_retries=0, reasoning_effort="low",
+                               transport=httpx.MockTransport(handler))
+    assert c.generate_json("s", "u") == {"resumo": "ok"}
+    assert bodies[0]["reasoning_effort"] == "low"
+    assert "reasoning_effort" not in bodies[1] and "response_format" not in bodies[1]

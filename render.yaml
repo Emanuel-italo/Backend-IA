@@ -19,6 +19,8 @@ services:
         value: groq
       - key: LLM_BASE_URL
         value: https://api.groq.com/openai/v1
+      - key: LLM_REASONING_EFFORT  # para modelos de raciocínio (openai/gpt-oss-*); ignorado se o modelo recusar
+        value: low
       - key: LLM_API_KEY      # chave da Groq: preenchida no painel, nunca no repositório
         sync: false
       - key: LLM_MODEL        # ID do modelo em https://console.groq.com/docs/models
