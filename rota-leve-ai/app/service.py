@@ -1,4 +1,3 @@
-"""Orquestração: score por perfil -> reordenação -> explicação (RAG + LLM)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -18,7 +17,6 @@ class RouteRanker:
 
     def route_facts(self, profile: Profile, routes: list[Route], reports: list[Report] | None = None,
                     now: datetime | None = None) -> list[dict]:
-        """Fatos de cada rota, na ordem do Rota Leve. Contexto do chat (mesma fonte de verdade do score)."""
         now = now or utcnow()
         out = []
         for route in routes:
@@ -39,19 +37,19 @@ class RouteRanker:
             active = filter_active(reports, ids, now) if reports is not None else self.report_store.active_for(ids, now)
             scored.append((route, score_route(route, profile, self.catalog, active)))
 
-        # Rotas bloqueadas vão para o fim; depois maior score; empate => mais rápida.
+        # bloqueada vai pro fim, depois maior nota, se empatar a mais rapida
         scored.sort(key=lambda rs: (rs[1].blocking, -rs[1].score, rs[0].duration_min))
 
         out: list[RankedRoute] = []
         for pos, (route, res) in enumerate(scored):
             explanation = None
-            if explain and pos < max_explained:  # limita custo/latência de LLM
+            if explain and pos < max_explained:
                 explanation = self.explainer.explain(profile, res.facts)
             out.append(RankedRoute(
                 route_id=route.id,
                 summary=route.summary,
                 score=res.score,
-                label=label_for(res.score, res.blocking),  # type: ignore[arg-type]
+                label=label_for(res.score, res.blocking),
                 blocking=res.blocking,
                 duration_min=route.duration_min,
                 walk_m=res.walk_m,
