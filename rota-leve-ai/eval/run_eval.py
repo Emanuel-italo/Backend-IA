@@ -11,19 +11,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import grounding  # noqa: E402
-from app.catalog import Catalog  # noqa: E402
-from app.chat import ChatAssistant  # noqa: E402
-from app.explain import Explainer  # noqa: E402
-from app.config import Settings  # noqa: E402
-from app.llm import LLMError, build_llm  # noqa: E402
-from app.models import ChatMessage, Profile, Route  # noqa: E402
-from app.rag import Retriever, build_query  # noqa: E402
-from app.reports import ReportStore  # noqa: E402
-from app.scoring import route_place_ids, score_route  # noqa: E402
-from app.service import RouteRanker  # noqa: E402
+from app import grounding
+from app.catalog import Catalog
+from app.chat import ChatAssistant
+from app.explain import Explainer
+from app.config import Settings
+from app.llm import LLMError, build_llm
+from app.models import ChatMessage, Profile, Route
+from app.rag import Retriever, build_query
+from app.reports import ReportStore
+from app.scoring import route_place_ids, score_route
+from app.service import RouteRanker
 
-logging.disable(logging.WARNING)  # os fallbacks simulados não precisam poluir a saída
+logging.disable(logging.WARNING)
 DATA, EVAL = ROOT / "data", ROOT / "eval"
 NOW = datetime.now(timezone.utc)
 out: list[str] = []
@@ -44,7 +44,7 @@ w()
 w(f"Gerado por `python eval/run_eval.py` em {NOW:%d/%m/%Y %H:%M} UTC. "
   "As seções 1 a 3 são determinísticas e rodam sem chave de API.")
 
-# ---------------------------------------------------------------- 1. Recuperação (RAG)
+# 1 - RAG
 cases = json.loads((EVAL / "retrieval_cases.json").read_text(encoding="utf-8"))
 hit1 = hit3 = 0
 rr: list[float] = []
@@ -87,7 +87,7 @@ if ood_leaks:
     for q in ood_leaks:
         w(f"- \"{q}\"")
 
-# ---------------------------------------------------------------- 2. Validador de fidelidade
+# 2 - validador
 g = json.loads((EVAL / "groundedness_cases.json").read_text(encoding="utf-8"))
 route = next(r for r in routes if r.id == g["rota"])
 gp = Profile(g["perfil"])
@@ -137,7 +137,6 @@ if wrongly_blocked:
         w(f"- \"{c['texto']}\"")
 
 
-
 class Broken:
     name = "broken"
 
@@ -145,14 +144,12 @@ class Broken:
         raise LLMError("timeout simulado")
 
 
-# ---------------------------------------------------------------- 3. Chat: validador e privacidade (offline)
+# 3 - chat sem internet
 chat_cases = json.loads((EVAL / "chat_cases.json").read_text(encoding="utf-8"))
 facts_by_profile = {p: ranker.route_facts(p, routes, now=NOW) for p in Profile}
 
 
 class Fixed:
-    """LLM simulado: devolve uma resposta fixa e guarda o prompt recebido."""
-
     name = "simulado"
 
     def __init__(self, response):
@@ -217,7 +214,7 @@ w(f"| Modelo fora do ar | resposta de reserva com trecho da base (`{down.fallbac
 w("| Conversa vazia, última mensagem do assistente, papel `system`, mensagem acima de 1000 caracteres | "
   "HTTP 422 (`tests/test_chat.py`) |")
 
-# ---------------------------------------------------------------- 4. LLM real (opcional)
+# 4 - modelo de verdade (so com --live)
 w()
 w("## 4. IA generativa real")
 w()
@@ -310,5 +307,5 @@ else:
       "aceitação, a latência e as respostas reais das explicações e do assistente conversacional.")
 
 (EVAL / "RESULTADOS.md").write_text("\n".join(out) + "\n", encoding="utf-8")
-sys.stdout.reconfigure(encoding="utf-8")  # console do Windows usa cp1252 por padrão
+sys.stdout.reconfigure(encoding="utf-8")  # senao da erro de acento no terminal do windows
 print("\n".join(out))
