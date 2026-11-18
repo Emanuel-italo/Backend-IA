@@ -127,7 +127,7 @@ rota-leve-ai/
     catalog.py             catálogo de estações e pontos
   data/                    dados sintéticos + base de conhecimento
   eval/                    casos de avaliação, script e RESULTADOS.md
-  tests/                   22 testes automatizados (pytest)
+  tests/                   23 testes automatizados (pytest)
   scripts/demo.py          demonstração por linha de comando
   Dockerfile               mesma API como contêiner
 ```
@@ -185,7 +185,7 @@ Get-Content .env | Where-Object { $_ -match '^[A-Z]' } | ForEach-Object { $k, $v
 ```bash
 python scripts/demo.py gestante        # demo no terminal (troque o perfil: cadeirante, carrinho, idoso, mobilidade_temporaria)
 uvicorn app.main:app --reload          # API em http://localhost:8000  (documentação em /docs)
-python -m pytest -q                    # 22 testes
+python -m pytest -q                    # 23 testes
 python eval/run_eval.py                # avaliação offline -> eval/RESULTADOS.md
 python eval/run_eval.py --live         # idem + avaliação do modelo real (precisa da chave)
 ```

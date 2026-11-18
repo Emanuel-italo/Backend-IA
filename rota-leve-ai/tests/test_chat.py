@@ -37,6 +37,15 @@ def test_pergunta_fora_do_tema_e_sinalizada(retriever, fatos):
     assert r.out_of_scope
 
 
+def test_emergencia_manda_ligar_192_sem_chamar_o_modelo(retriever, fatos):
+    llm = FakeLLM({"resposta": "Pegue o ônibus.", "rotas_citadas": []})
+    for texto in ("estou ganhando o neném", "sim e eu estou grávida ganhando o bebê o que faço",
+                  "minha bolsa estourou"):
+        r = ChatAssistant(retriever, llm).reply(Profile.GESTANTE, pergunta(texto), fatos)
+        assert "192" in r.reply and r.fallback_reason == "emergencia"
+    assert llm.calls == 0
+
+
 def test_modelo_fora_do_ar_devolve_resposta_de_reserva(retriever, fatos):
     llm = FakeLLM(error=LLMError("timeout"))
     r = ChatAssistant(retriever, llm).reply(Profile.GESTANTE, pergunta("O elevador quebrou, o que faço?"), fatos)

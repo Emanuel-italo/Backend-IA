@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import unicodedata
 
 from . import grounding
 from .llm import LLMError
@@ -28,6 +29,8 @@ REGRAS OBRIGATÓRIAS
   Acolha a pessoa, sugira a rota com menos caminhada e escada e use as orientações de CONTEXTO (assento
   preferencial, pedir ajuda ao motorista, cobrador ou funcionário da estação). Se a dor for forte, diga para
   procurar atendimento de saúde, sem dar diagnóstico nem remédio.
+- Se for emergência (parto, sangramento, desmaio, falta de ar, dor no peito), NÃO sugira rota: diga para ligar
+  192 (SAMU) e pedir ajuda a quem estiver perto.
 - Se não tiver o dado pedido ou perguntarem o que você faz, diga em uma frase o que consegue fazer (comparar
   caminhada, tempo, baldeações, escadas e elevadores com relato, e dar dicas de acessibilidade) e sugira uma
   pergunta. Você não tem horários, trânsito nem lotação: nunca ofereça isso.
@@ -56,6 +59,22 @@ def redact(texto: str) -> str:
     return TELEFONE.sub("[telefone]", texto)
 
 
+# emergencia nao passa pela IA, a resposta é fixa
+EMERGENCIA = re.compile(
+    r"ganhando (o|a|meu|minha)? ?(bebe|nenem|filho|filha)|trabalho de parto|bolsa (estourou|rompeu)"
+    r"|contracoes|sangrando|sangramento|desmai|dor no peito|falta de ar|nao consigo respirar"
+    r"|infarto|avc|convuls")
+
+RESPOSTA_EMERGENCIA = ("Isso parece uma emergência. Ligue agora para o SAMU no 192 ou peça para alguém por "
+                       "perto ligar. Se estiver no metrô ou no ônibus, avise o funcionário ou o motorista "
+                       "na hora. Não espere a rota.")
+
+
+def eh_emergencia(texto: str) -> bool:
+    sem_acento = unicodedata.normalize("NFKD", texto.lower()).encode("ascii", "ignore").decode()
+    return bool(EMERGENCIA.search(sem_acento))
+
+
 class ChatAssistant:
     def __init__(self, retriever: Retriever, llm=None, top_k: int = 3):
         self.retriever = retriever
@@ -66,6 +85,8 @@ class ChatAssistant:
         # 1 - esconde os dados pessoais
         msgs = [ChatMessage(role=m.role, content=redact(m.content)) for m in messages]
         pergunta = msgs[-1].content
+        if eh_emergencia(pergunta):
+            return ChatResponse(reply=RESPOSTA_EMERGENCIA, source="template", fallback_reason="emergencia")
 
         # 2 - busca na base (RAG)
         hits = self.retriever.search(pergunta, profile, self.top_k)
