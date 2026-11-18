@@ -1,184 +1,38 @@
+"""Testes da chamada à Groq. O MockTransport simula a Groq, então não precisa de internet nem de chave."""
 import json
 
 import httpx
 import pytest
 
-from app.llm import GeminiClient, LLMError
+from app.llm import GroqClient, LLMError, ler_json
 
 
-def gemini_ok(text):
-    return {"candidates": [{"content": {"parts": [{"text": text}]}}]}
+def cliente(handler):
+    return GroqClient("chave-de-teste", "modelo-x", timeout_s=1, transport=httpx.MockTransport(handler))
 
 
-def client(handler, retries=1):
-    return GeminiClient("chave-de-teste", "modelo-x", timeout_s=1, max_retries=retries,
-                        transport=httpx.MockTransport(handler))
+def test_envia_a_chave_no_header_e_le_a_resposta_em_json():
+    visto = {}
+
+    def groq_falsa(req):
+        visto["auth"] = req.headers.get("authorization")
+        visto["body"] = json.loads(req.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"resumo": "ok"}'}}]})
+
+    assert cliente(groq_falsa).generate_json("instruções", "pergunta") == {"resumo": "ok"}
+    assert visto["auth"] == "Bearer chave-de-teste"
+    assert [m["role"] for m in visto["body"]["messages"]] == ["system", "user"]
 
 
-def test_sucesso_e_chave_vai_no_header_nao_na_url():
-    seen = {}
-
-    def handler(req):
-        seen["url"], seen["key"] = str(req.url), req.headers.get("x-goog-api-key")
-        return httpx.Response(200, json=gemini_ok('```json\n{"resumo": "ok"}\n```'))
-
-    assert client(handler).generate_json("s", "u") == {"resumo": "ok"}
-    assert seen["key"] == "chave-de-teste" and "chave-de-teste" not in seen["url"]
-
-
-def test_400_tenta_de_novo_sem_generation_config():
-    bodies = []
-
-    def handler(req):
-        body = json.loads(req.content)
-        bodies.append(body)
-        if "generationConfig" in body:
-            return httpx.Response(400, json={"error": "campo inválido"})
-        return httpx.Response(200, json=gemini_ok('{"resumo": "ok"}'))
-
-    assert client(handler, retries=0).generate_json("s", "u")["resumo"] == "ok"
-    assert len(bodies) == 2 and "generationConfig" not in bodies[1]
-
-
-def test_503_faz_retry_e_depois_falha(monkeypatch):
-    monkeypatch.setattr("app.llm.time.sleep", lambda s: None)
-    calls = []
-
-    def handler(req):
-        calls.append(1)
-        return httpx.Response(503)
-
-    with pytest.raises(LLMError):
-        client(handler, retries=1).generate_json("s", "u")
-    assert len(calls) == 2
-
-
-def test_401_nao_faz_retry_e_erro_nao_vaza_a_chave():
-    calls = []
-
-    def handler(req):
-        calls.append(1)
-        return httpx.Response(401)
-
+def test_erro_da_groq_vira_llm_error_sem_mostrar_a_chave():
+    erro = {"error": {"message": "The model `xyz` does not exist"}}
     with pytest.raises(LLMError) as exc:
-        client(handler, retries=3).generate_json("s", "u")
-    assert len(calls) == 1 and "chave-de-teste" not in str(exc.value)
-
-
-@pytest.mark.parametrize("payload", [{"candidates": []}, gemini_ok("não é json"), gemini_ok("[1, 2]")])
-def test_resposta_invalida_vira_llm_error(payload, monkeypatch):
-    monkeypatch.setattr("app.llm.time.sleep", lambda s: None)
-    with pytest.raises(LLMError):
-        client(lambda req: httpx.Response(200, json=payload), retries=0).generate_json("s", "u")
-
-
-# ---------------------------------------------------------------- Groq (formato OpenAI)
-from app.config import Settings  # noqa: E402
-from app.llm import GeminiClient as _G, OpenAICompatibleClient, build_llm  # noqa: E402
-
-
-def openai_ok(text):
-    return {"choices": [{"message": {"role": "assistant", "content": text}}]}
-
-
-def groq(handler, retries=1):
-    return OpenAICompatibleClient("chave-de-teste", "modelo-x", timeout_s=1, max_retries=retries,
-                                  transport=httpx.MockTransport(handler))
-
-
-def test_groq_sucesso_bearer_no_header_e_url_padrao():
-    seen = {}
-
-    def handler(req):
-        seen["url"], seen["auth"] = str(req.url), req.headers.get("authorization")
-        seen["body"] = json.loads(req.content)
-        return httpx.Response(200, json=openai_ok('```json\n{"resumo": "ok"}\n```'))
-
-    assert groq(handler).generate_json("s", "u") == {"resumo": "ok"}
-    assert seen["url"] == "https://api.groq.com/openai/v1/chat/completions"
-    assert seen["auth"] == "Bearer chave-de-teste" and "chave-de-teste" not in seen["url"]
-    assert seen["body"]["model"] == "modelo-x"
-    assert [m["role"] for m in seen["body"]["messages"]] == ["system", "user"]
-
-
-def test_groq_400_tenta_de_novo_sem_response_format():
-    bodies = []
-
-    def handler(req):
-        body = json.loads(req.content)
-        bodies.append(body)
-        if "response_format" in body:
-            return httpx.Response(400, json={"error": "não suportado"})
-        return httpx.Response(200, json=openai_ok('{"resumo": "ok"}'))
-
-    assert groq(handler, retries=0).generate_json("s", "u")["resumo"] == "ok"
-    assert len(bodies) == 2 and "response_format" not in bodies[1]
-
-
-def test_groq_429_faz_retry_e_401_nao(monkeypatch):
-    monkeypatch.setattr("app.llm.time.sleep", lambda s: None)
-    calls = []
-
-    def h429(req):
-        calls.append(1)
-        return httpx.Response(429)
-
-    with pytest.raises(LLMError):
-        groq(h429, retries=1).generate_json("s", "u")
-    assert len(calls) == 2
-
-    calls.clear()
-
-    def h401(req):
-        calls.append(1)
-        return httpx.Response(401)
-
-    with pytest.raises(LLMError) as exc:
-        groq(h401, retries=3).generate_json("s", "u")
-    assert len(calls) == 1 and "chave-de-teste" not in str(exc.value)
-
-
-@pytest.mark.parametrize("payload", [{"choices": []}, openai_ok(""), openai_ok("não é json"), openai_ok("[1]")])
-def test_groq_resposta_invalida_vira_llm_error(payload, monkeypatch):
-    monkeypatch.setattr("app.llm.time.sleep", lambda s: None)
-    with pytest.raises(LLMError):
-        groq(lambda req: httpx.Response(200, json=payload), retries=0).generate_json("s", "u")
-
-
-def test_build_llm_escolhe_provedor():
-    assert build_llm(Settings(llm_api_key=None, llm_model="m")) is None
-    assert build_llm(Settings(llm_api_key="k", llm_model="")) is None
-    assert isinstance(build_llm(Settings(llm_api_key="k", llm_model="m", llm_provider="groq")), OpenAICompatibleClient)
-    assert isinstance(build_llm(Settings(llm_api_key="k", llm_model="m", llm_provider="gemini")), _G)
-
-
-def test_groq_404_mostra_motivo_do_provedor_sem_vazar_chave():
-    body = {"error": {"message": "The model `xyz` does not exist", "code": "model_not_found"}}
-    with pytest.raises(LLMError) as exc:
-        groq(lambda req: httpx.Response(404, json=body), retries=2).generate_json("s", "u")
+        cliente(lambda req: httpx.Response(404, json=erro)).generate_json("s", "u")
     assert "does not exist" in str(exc.value) and "chave-de-teste" not in str(exc.value)
 
 
-@pytest.mark.parametrize("text", [
-    '<think>A pessoa é gestante, então...</think>\n{"resumo": "ok"}',
-    'Claro! Aqui está: {"resumo": "ok"} Espero ter ajudado.',
-])
-def test_groq_tolera_raciocinio_e_texto_em_volta_do_json(text):
-    assert groq(lambda req: httpx.Response(200, json=openai_ok(text))).generate_json("s", "u") == {"resumo": "ok"}
-
-
-def test_reasoning_effort_e_enviado_e_removido_se_o_modelo_recusar():
-    bodies = []
-
-    def handler(req):
-        body = json.loads(req.content)
-        bodies.append(body)
-        if "reasoning_effort" in body:
-            return httpx.Response(400, json={"error": {"message": "reasoning_effort not supported"}})
-        return httpx.Response(200, json=openai_ok('{"resumo": "ok"}'))
-
-    c = OpenAICompatibleClient("k", "m", timeout_s=1, max_retries=0, reasoning_effort="low",
-                               transport=httpx.MockTransport(handler))
-    assert c.generate_json("s", "u") == {"resumo": "ok"}
-    assert bodies[0]["reasoning_effort"] == "low"
-    assert "reasoning_effort" not in bodies[1] and "response_format" not in bodies[1]
+def test_le_json_mesmo_com_cercas_ou_texto_em_volta():
+    assert ler_json('```json\n{"resumo": "ok"}\n```') == {"resumo": "ok"}
+    assert ler_json('Claro! {"resumo": "ok"}') == {"resumo": "ok"}
+    with pytest.raises(LLMError):
+        ler_json("não é json")

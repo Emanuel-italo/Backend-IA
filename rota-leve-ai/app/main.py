@@ -9,7 +9,6 @@ from functools import lru_cache
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import RedirectResponse
 
-from .adapters.directions import routes_from_directions
 from .catalog import Catalog
 from .chat import ChatAssistant
 from .config import Settings, get_settings
@@ -35,19 +34,13 @@ def get_ranker() -> RouteRanker:
     catalog = Catalog.from_file(s.data_dir / "pontos.json")
     store = ReportStore.from_seed(s.data_dir / "relatos.json")
     retriever = Retriever.from_file(s.data_dir / "base_conhecimento.json", min_score=s.rag_min_score)
-    return RouteRanker(catalog, store, Explainer(retriever, build_llm(s), s.rag_top_k, s.cache_size))
+    return RouteRanker(catalog, store, Explainer(retriever, build_llm(s), s.rag_top_k))
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    s = get_settings()
-    expected = s.service_api_key
-    if not expected:
-        # Publicado (APP_ENV=production) sem chave = endpoint aberto gastando créditos do LLM.
-        # Falha fechada em vez de aceitar qualquer chamada.
-        if s.deploy_env == "production":
-            raise HTTPException(status_code=503, detail="Serviço sem SERVICE_API_KEY configurada")
-        return
-    if not (x_api_key and hmac.compare_digest(x_api_key, expected)):
+    """Só quem tem a SERVICE_API_KEY (backend e servidor do front) chama os endpoints que usam o LLM."""
+    expected = get_settings().service_api_key
+    if expected and not (x_api_key and hmac.compare_digest(x_api_key, expected)):
         raise HTTPException(status_code=401, detail="API key inválida ou ausente")
 
 
@@ -75,15 +68,8 @@ def demo_routes() -> list[Route]:
 
 @app.post("/v1/routes/rank", response_model=RankResponse, dependencies=[Depends(require_api_key)])
 def rank_routes(req: RankRequest) -> RankResponse:
-    ranker = get_ranker()
-    routes = req.routes
-    if routes is None and req.directions is not None:
-        routes = routes_from_directions(req.directions, ranker.catalog)
-    if not routes:
-        raise HTTPException(status_code=422, detail="Informe `routes` ou `directions` com ao menos uma rota.")
-    if len(routes) > 10:
-        raise HTTPException(status_code=422, detail="Máximo de 10 rotas por requisição.")
-    return ranker.rank(req.profile, routes, reports=req.reports, explain=req.explain)
+    """Recebe o perfil e as rotas candidatas; devolve as rotas ordenadas, com nota e explicação."""
+    return get_ranker().rank(req.profile, req.routes, reports=req.reports, explain=req.explain)
 
 
 @app.post("/v1/chat", response_model=ChatResponse, dependencies=[Depends(require_api_key)])

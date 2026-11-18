@@ -1,9 +1,3 @@
-"""Avaliação reprodutível da funcionalidade de IA. Gera eval/RESULTADOS.md.
-
-Uso:
-    python eval/run_eval.py            # offline (determinístico, sem chave)
-    python eval/run_eval.py --live     # também chama o LLM real (precisa de LLM_API_KEY e LLM_MODEL)
-"""
 from __future__ import annotations
 
 import json
@@ -24,9 +18,9 @@ from app.explain import Explainer  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.llm import LLMError, build_llm  # noqa: E402
 from app.models import ChatMessage, Profile, Route  # noqa: E402
-from app.rag import ISSUE_QUERY, Retriever, build_query  # noqa: E402
+from app.rag import Retriever, build_query  # noqa: E402
 from app.reports import ReportStore  # noqa: E402
-from app.scoring import RULES, route_place_ids, score_route  # noqa: E402
+from app.scoring import route_place_ids, score_route  # noqa: E402
 from app.service import RouteRanker  # noqa: E402
 
 logging.disable(logging.WARNING)  # os fallbacks simulados não precisam poluir a saída
@@ -43,11 +37,12 @@ catalog = Catalog.from_file(DATA / "pontos.json")
 store = ReportStore.from_seed(DATA / "relatos.json", now=NOW)
 retriever = Retriever.from_file(DATA / "base_conhecimento.json")
 routes = [Route(**r) for r in json.loads((DATA / "rotas_demo.json").read_text(encoding="utf-8"))["rotas"]]
+ranker = RouteRanker(catalog, store, Explainer(retriever, llm=None))
 
 w("# Resultados da avaliação")
 w()
 w(f"Gerado por `python eval/run_eval.py` em {NOW:%d/%m/%Y %H:%M} UTC. "
-  "As seções 1 a 6 são determinísticas e rodam sem chave de API.")
+  "As seções 1 a 3 são determinísticas e rodam sem chave de API.")
 
 # ---------------------------------------------------------------- 1. Recuperação (RAG)
 cases = json.loads((EVAL / "retrieval_cases.json").read_text(encoding="utf-8"))
@@ -92,60 +87,7 @@ if ood_leaks:
     for q in ood_leaks:
         w(f"- \"{q}\"")
 
-# ---------------------------------------------------------------- 2. Consultas internas
-EXPECTED = {
-    "bloqueio": "kb-sem-rota-acessivel", "escadas": "kb-escadas-gestante", "elevador_incerto": "kb-elevador-fora",
-    "caminhada_longa": "kb-caminhada-longa", "ladeira": "kb-ladeira-rampa", "calcada_ruim": "kb-calcada-ruim",
-    "sem_cobertura": "kb-ponto-sem-cobertura", "sem_assento": "kb-prioridade-lei", "baldeacao": "kb-baldeacao",
-    "sem_dados": "kb-sem-dados",
-}
-PROFILE_FOR = {"escadas": Profile.GESTANTE, "bloqueio": Profile.CADEIRANTE}
-ok2 = 0
-rows = []
-for code, expected in EXPECTED.items():
-    profile = PROFILE_FOR.get(code, Profile.IDOSO)
-    ids = [h.chunk.id for h in retriever.search(build_query(RULES[profile].label, [code]), profile, k=2)]
-    good = expected in ids
-    ok2 += good
-    rows.append((code, expected, ", ".join(ids) or "(vazio)", "ok" if good else "FALHOU"))
-w()
-w("## 2. Consultas que o próprio sistema gera")
-w()
-w("Na aplicação, a consulta ao RAG é montada a partir dos códigos de problema do score (não é texto livre do "
-  "usuário). Para cada código, o trecho esperado precisa estar entre os 2 recuperados.")
-w()
-w(f"**Resultado: {ok2}/{len(EXPECTED)}**" + (f" (códigos sem consulta dedicada: {sorted(set(ISSUE_QUERY) - set(EXPECTED))})"
-                                                if set(ISSUE_QUERY) - set(EXPECTED) else ""))
-w()
-w("| Código do problema | Esperado | Recuperados (top 2) | |")
-w("|---|---|---|---|")
-for r in rows:
-    w(f"| `{r[0]}` | `{r[1]}` | {r[2]} | {r[3]} |")
-
-# ---------------------------------------------------------------- 3. Reordenação
-ranker = RouteRanker(catalog, store, Explainer(retriever, llm=None))
-baseline = [r.id for r in sorted(routes, key=lambda r: r.duration_min)]
-w()
-w("## 3. Reordenação por perfil (cenário de demonstração)")
-w()
-w(f"Linha de base (app comum, mais rápida primeiro): `{' > '.join(baseline)}`")
-w()
-w("| Perfil | Ordem do Rota Leve (nota) | 1ª da linha de base para este perfil |")
-w("|---|---|---|")
-baseline_bad = 0
-for p in Profile:
-    resp = ranker.rank(p, routes, now=NOW, explain=False)
-    by = {r.route_id: r for r in resp.routes}
-    order = " > ".join(f"{r.route_id} ({r.score}{', bloqueada' if r.blocking else ''})" for r in resp.routes)
-    b = by[baseline[0]]
-    baseline_bad += b.label != "recomendada"
-    w(f"| {p.value} | {order} | {b.label}{' (bloqueada)' if b.blocking else ''}, nota {b.score} |")
-w()
-w(f"Em {baseline_bad} de {len(Profile)} perfis a rota que o app comum mostraria primeiro **não** é recomendada "
-  "pelo critério de acessibilidade. Os critérios esperados (rota bloqueada no fim, relato expirado ignorado, "
-  "relato não confirmado não bloqueia etc.) são verificados automaticamente em `tests/test_scoring.py`.")
-
-# ---------------------------------------------------------------- 4. Validador de fidelidade
+# ---------------------------------------------------------------- 2. Validador de fidelidade
 g = json.loads((EVAL / "groundedness_cases.json").read_text(encoding="utf-8"))
 route = next(r for r in routes if r.id == g["rota"])
 gp = Profile(g["perfil"])
@@ -168,7 +110,7 @@ for c in g["casos"]:
         if accepted:
             escaped.append(c)
 w()
-w("## 4. Validador de fidelidade (groundedness)")
+w("## 2. Validador de fidelidade (groundedness)")
 w()
 w(f"{len(g['casos'])} respostas simuladas de LLM para a rota `{g['rota']}` / perfil `{g['perfil']}` "
   "(`eval/groundedness_cases.json`): fiéis devem passar, infiéis devem ser barradas.")
@@ -194,7 +136,6 @@ if wrongly_blocked:
     for c in wrongly_blocked:
         w(f"- \"{c['texto']}\"")
 
-# ---------------------------------------------------------------- 5. Falhas
 
 
 class Broken:
@@ -204,37 +145,7 @@ class Broken:
         raise LLMError("timeout simulado")
 
 
-class Garbage:
-    name = "garbage"
-
-    def generate_json(self, system, user):
-        return {"qualquer": "coisa"}
-
-
-w()
-w("## 5. Situações de falha")
-w()
-w("| Situação | Comportamento observado |")
-w("|---|---|")
-for label, llm in (("LLM fora do ar (timeout)", Broken()), ("LLM devolve JSON fora do formato", Garbage())):
-    rk = RouteRanker(catalog, store, Explainer(retriever, llm=llm))
-    total = with_exp = 0
-    reasons = set()
-    for p in Profile:
-        for r in rk.rank(p, routes, now=NOW, max_explained=len(routes)).routes:
-            total += 1
-            with_exp += bool(r.explanation and r.explanation.resumo)
-            reasons.add(r.explanation.fallback_reason)
-    w(f"| {label} | {with_exp}/{total} rotas continuam com explicação (template), motivo registrado: {sorted(reasons)} |")
-only_blocked = [r for r in routes if r.id == "r1-metro-se"]
-resp = ranker.rank(Profile.CADEIRANTE, only_blocked, now=NOW)
-w(f"| Nenhuma rota acessível para o perfil | rota marcada `{resp.routes[0].label}`, resumo: \"{resp.routes[0].explanation.resumo}\" "
-  f"· trechos usados: {resp.routes[0].explanation.kb_refs} |")
-w("| Perfil vazio, perfil inexistente, lista de rotas vazia, rota sem trechos | HTTP 422 (`tests/test_api.py`) |")
-w("| Relato expirado | ignorado no score (`tests/test_scoring.py`) |")
-w("| Parada sem correspondência no catálogo | penalidade `sem_dados` + aviso, sem inventar atributos |")
-
-# ---------------------------------------------------------------- 6. Chat: validador e privacidade (offline)
+# ---------------------------------------------------------------- 3. Chat: validador e privacidade (offline)
 chat_cases = json.loads((EVAL / "chat_cases.json").read_text(encoding="utf-8"))
 facts_by_profile = {p: ranker.route_facts(p, routes, now=NOW) for p in Profile}
 
@@ -281,7 +192,7 @@ down = ChatAssistant(retriever, Broken()).reply(Profile.GESTANTE, ask("O elevado
                                                 facts_by_profile[Profile.GESTANTE])
 
 w()
-w("## 6. Assistente conversacional: validação e privacidade (offline)")
+w("## 3. Assistente conversacional: validação e privacidade (offline)")
 w()
 w(f"{len(chat_cases['simulados'])} respostas simuladas do modelo passam pelo mesmo caminho do `POST /v1/chat` "
   "(`eval/chat_cases.json`): fiéis devem ser aceitas, infiéis devem cair na resposta de reserva.")
@@ -306,20 +217,17 @@ w(f"| Modelo fora do ar | resposta de reserva com trecho da base (`{down.fallbac
 w("| Conversa vazia, última mensagem do assistente, papel `system`, mensagem acima de 1000 caracteres | "
   "HTTP 422 (`tests/test_chat.py`) |")
 
-# ---------------------------------------------------------------- 7. LLM real (opcional)
+# ---------------------------------------------------------------- 4. LLM real (opcional)
 w()
-w("## 7. IA generativa real")
+w("## 4. IA generativa real")
 w()
-_live_settings = Settings(llm_timeout_s=20, llm_max_retries=1)
-llm = build_llm(_live_settings) if "--live" in sys.argv else None
+llm = build_llm(Settings(llm_timeout_s=20)) if "--live" in sys.argv else None
 if llm is not None:
-    model = f"{_live_settings.llm_provider}/{llm.name}"
-    w(f"Modelo: `{model}`" + (f" · reasoning_effort `{_live_settings.llm_reasoning_effort}`"
-                              if _live_settings.llm_reasoning_effort else "") + ".")
+    w(f"Modelo: `{llm.name}` (Groq).")
     w()
-    w("### 7.1 Explicação das rotas")
+    w("### 4.1 Explicação das rotas")
     w()
-    ex = Explainer(retriever, llm, cache_size=0)
+    ex = Explainer(retriever, llm)
     lat, sources, reasons, samples = [], [], [], []
     for p in Profile:
         for route in routes:
@@ -348,7 +256,7 @@ if llm is not None:
         w(f"- **{p} / {rid}** — {e.resumo} Pontos de atenção: {e.pontos_de_atencao}. Dica: {e.dica}")
 
     w()
-    w("### 7.2 Assistente conversacional")
+    w("### 4.2 Assistente conversacional")
     w()
     chat = ChatAssistant(retriever, llm)
     clat, crows = [], []

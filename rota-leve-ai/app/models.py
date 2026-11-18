@@ -57,9 +57,8 @@ class Report(BaseModel):
 
 class RankRequest(BaseModel):
     profile: Profile
-    routes: list[Route] | None = None
-    # Resposta crua da Google Directions API (mode=transit, alternatives=true). Alternativa a `routes`.
-    directions: dict | None = None
+    # Rotas candidatas (o backend obtém no Google Directions e converte para este formato). De 1 a 10.
+    routes: list[Route] = Field(..., min_length=1, max_length=10)
     # Relatos opcionais; se ausente, o serviço usa a base local de relatos.
     reports: list[Report] | None = None
     explain: bool = True

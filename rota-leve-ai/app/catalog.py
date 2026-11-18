@@ -1,41 +1,29 @@
-"""Catálogo de pontos (estações/paradas) com atributos de acessibilidade.
+"""Catálogo de estações e pontos de ônibus com informações de acessibilidade.
 
-Em produção esta fonte viria de dados abertos (GTFS/SPTrans/Metrô) e de uma tabela mantida por gestores.
-No repositório usamos dados SINTÉTICOS de demonstração (ver data/pontos.json).
+Os dados de data/pontos.json são SINTÉTICOS (inventados para a demonstração).
+Em produção viriam de dados abertos (SPTrans, Metrô) e de um cadastro mantido por gestores.
 """
 from __future__ import annotations
 
 import json
-import re
-import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-
-
-def normalize(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
-    return re.sub(r"[^a-z0-9 ]+", " ", text.lower()).strip()
 
 
 @dataclass(frozen=True)
 class Place:
     id: str
     name: str
-    type: str  # station | bus_stop
+    type: str  # "station" (estação) ou "bus_stop" (ponto de ônibus)
     has_elevator: bool = False
-    stairs_flights: int = 0  # lances de escada se não houver elevador
-    covered: bool = True
-    seating: bool = True
-    aliases: tuple[str, ...] = field(default_factory=tuple)
+    stairs_flights: int = 0  # lances de escada quando não há elevador
+    covered: bool = True     # ponto coberto?
+    seating: bool = True     # tem banco?
 
 
 class Catalog:
     def __init__(self, places: list[Place]):
         self._by_id = {p.id: p for p in places}
-        self._by_name: dict[str, str] = {}
-        for p in places:
-            for n in (p.name, *p.aliases):
-                self._by_name[normalize(n)] = p.id
 
     @classmethod
     def from_file(cls, path: Path) -> "Catalog":
@@ -49,7 +37,6 @@ class Catalog:
                 stairs_flights=p.get("stairs_flights", 0),
                 covered=p.get("covered", True),
                 seating=p.get("seating", True),
-                aliases=tuple(p.get("aliases", [])),
             )
             for p in raw["places"]
         ]
@@ -65,13 +52,3 @@ class Catalog:
         if place_id and place_id.startswith("desconhecido:"):
             return place_id.split(":", 1)[1]
         return place_id or "local sem dados"
-
-    def match_name(self, name: str) -> str | None:
-        """Casa um nome vindo de API externa (ex.: Google Directions) com um id do catálogo."""
-        key = normalize(name)
-        if key in self._by_name:
-            return self._by_name[key]
-        for alias_key, pid in self._by_name.items():
-            if alias_key and (alias_key in key or key in alias_key):
-                return pid
-        return None
