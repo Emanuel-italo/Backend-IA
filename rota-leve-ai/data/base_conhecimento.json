@@ -5,7 +5,7 @@
       "id": "kb-prioridade-lei",
       "titulo": "Atendimento prioritário e assento reservado",
       "perfis": ["gestante", "idoso", "cadeirante", "carrinho"],
-      "palavras_chave": "direitos prioridade assento preferencial espera em pé fila",
+      "palavras_chave": "direitos prioridade assento preferencial espera em pé fila ajuda cobrador motorista funcionário pedir ajuda dor cansaço sentar",
       "texto": "Você tem direito a atendimento prioritário e a assento reservado no transporte coletivo. A regra vale para gestantes, lactantes, pessoas com criança de colo, pessoas idosas e pessoas com deficiência. Se os assentos reservados estiverem ocupados, peça ajuda ao motorista ou a um funcionário da estação.",
       "fonte": "Lei nº 10.048/2000 (prioridade de atendimento)"
     },
@@ -101,7 +101,7 @@
       "id": "kb-mobilidade-temporaria",
       "titulo": "Muletas, bota ortopédica e pós-cirurgia",
       "perfis": ["mobilidade_temporaria"],
-      "palavras_chave": "muleta perna engessada gesso bota ortopédica pós-cirurgia recuperação",
+      "palavras_chave": "muleta perna engessada gesso bota ortopédica pós-cirurgia recuperação dor na perna joelho machucado dificuldade para andar mancando",
       "texto": "Evite horários de pico quando puder, porque vagões e ônibus lotados dificultam o apoio de muletas e aumentam o risco de esbarrões. Escadas rolantes exigem equilíbrio na entrada e na saída; o elevador é a opção mais segura.",
       "fonte": "Orientação geral de segurança; não substitui orientação médica"
     }

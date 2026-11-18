@@ -280,7 +280,7 @@ Relatório completo e reprodutível: [`rota-leve-ai/eval/RESULTADOS.md`](rota-le
 
 | O que foi avaliado | Critério | Resultado |
 |---|---|---|
-| Recuperação (RAG) | 22 perguntas em linguagem de usuário, trecho esperado anotado | hit@1 86% · hit@3 100% · MRR@3 0,93 |
+| Recuperação (RAG) | 22 perguntas em linguagem de usuário, trecho esperado anotado | hit@1 91% · hit@3 100% · MRR@3 0,95 |
 | Rejeição fora do domínio | 8 perguntas sem relação com o tema devem retornar vazio | 7 de 8 |
 | Validador da explicação | 16 respostas simuladas (6 fiéis, 10 infiéis) | precisão 100% · recall 70% |
 | Validador do chat | 9 respostas simuladas (4 fiéis, 5 infiéis) | fiéis aceitas 4/4 · infiéis barradas 4/5 (recall 80%) |

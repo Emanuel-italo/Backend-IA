@@ -1,6 +1,6 @@
 # Resultados da avaliação
 
-Gerado por `python eval/run_eval.py` em 18/11/2026 22:05 UTC. As seções 1 a 3 são determinísticas e rodam sem chave de API.
+Gerado por `python eval/run_eval.py` em 18/11/2026 23:00 UTC. As seções 1 a 3 são determinísticas e rodam sem chave de API.
 
 ## 1. Recuperação (RAG básico)
 
@@ -8,16 +8,15 @@ Conjunto: 22 perguntas escritas à mão em linguagem de usuário + 8 perguntas f
 
 | Métrica | Valor |
 |---|---|
-| hit@1 | 19/22 (86%) |
+| hit@1 | 20/22 (91%) |
 | hit@3 | 22/22 (100%) |
-| MRR@3 | 0.932 |
+| MRR@3 | 0.947 |
 | Fora do domínio corretamente rejeitadas | 7/8 |
 
 Erros de primeira posição:
 
 - "elevador parado no metrô e estou com carrinho de bebê" → veio `kb-onibus-acessivel`, esperado `kb-elevador-fora` (esperado na posição 2)
-- "tenho direito a sentar no ônibus estando grávida?" → veio `kb-escadas-gestante`, esperado `kb-prioridade-lei` (esperado na posição 2)
-- "como funciona o atende da sptrans" → veio `kb-elevador-fora`, esperado `kb-sem-rota-acessivel` (esperado na posição 2)
+- "como funciona o atende da sptrans" → veio `kb-elevador-fora`, esperado `kb-sem-rota-acessivel` (esperado na posição 3)
 
 Fora do domínio que passaram pelo limiar (falso positivo):
 
