@@ -1,12 +1,3 @@
-"""Explicação de cada rota em linguagem natural (IA generativa + RAG).
-
-Passo a passo:
-1. Busca na base de conhecimento (RAG) os trechos ligados aos problemas da rota.
-2. Monta o prompt com os FATOS da rota (calculados pelo score) e o CONTEXTO (trechos do RAG).
-3. Pede ao modelo um JSON com resumo, pontos de atenção e dica.
-4. Confere a resposta (grounding.py). Se o modelo falhar ou inventar algo, usa um texto
-   pronto (template) com os mesmos fatos. A pessoa nunca fica sem explicação.
-"""
 from __future__ import annotations
 
 import json
@@ -37,7 +28,6 @@ Responda APENAS com JSON:
 
 def template_explanation(facts: dict, hits: list[Hit], source: str = "template",
                          reason: str | None = None) -> Explanation:
-    """Explicação determinística montada só com os fatos. Também é o fallback do LLM."""
     walk, dur = facts["caminhada_m"], facts["duracao_min"]
     base = f"{dur} min de viagem e {walk} m de caminhada"
     if facts["bloqueada_para_o_perfil"]:
@@ -57,7 +47,7 @@ def template_explanation(facts: dict, hits: list[Hit], source: str = "template",
         resumo=resumo,
         pontos_de_atencao=facts["problemas"][:3],
         dica=dica,
-        source=source,  # type: ignore[arg-type]
+        source=source,
         fallback_reason=reason,
         kb_refs=[h.chunk.id for h in hits],
     )
@@ -66,21 +56,21 @@ def template_explanation(facts: dict, hits: list[Hit], source: str = "template",
 class Explainer:
     def __init__(self, retriever: Retriever, llm=None, top_k: int = 2):
         self.retriever = retriever
-        self.llm = llm  # None = sem chave configurada: só template
+        self.llm = llm
         self.top_k = top_k
 
     def explain(self, profile: Profile, facts: dict) -> Explanation:
-        # 1. RAG: a consulta é montada a partir dos códigos de problema da rota
+        # 1 - busca na base (RAG) usando os problemas da rota
         hits = self.retriever.search(build_query(facts["perfil"], facts["codigos"]), profile, self.top_k)
         if self.llm is None:
             return template_explanation(facts, hits)
 
-        # 2. Prompt: só o TIPO de perfil e dados da rota (nenhum dado pessoal)
+        # 2 - monta o prompt (so o tipo de perfil, sem dado pessoal)
         context = [{"id": h.chunk.id, "texto": h.chunk.texto} for h in hits]
         user = (f"FATOS:\n{json.dumps(facts, ensure_ascii=False)}\n\n"
                 f"CONTEXTO:\n{json.dumps(context, ensure_ascii=False)}")
 
-        # 3. Chamada ao modelo
+        # 3 - chama o modelo
         try:
             raw = self.llm.generate_json(SYSTEM_PROMPT, user)
             resumo = str(raw["resumo"]).strip()
@@ -96,7 +86,7 @@ class Explainer:
         if not resumo:
             return template_explanation(facts, hits, "template_fallback", "formato_invalido")
 
-        # 4. Validação: números inventados ou contradições => template
+        # 4 - se inventou numero ou contradisse os fatos, usa o template
         texto = " ".join([resumo, *pontos, dica or ""])
         ok, motivo = grounding.check(texto, facts, [h.chunk.texto for h in hits])
         if not ok:
