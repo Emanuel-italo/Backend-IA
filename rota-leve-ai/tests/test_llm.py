@@ -1,4 +1,3 @@
-"""Testes da chamada à Groq. O MockTransport simula a Groq, então não precisa de internet nem de chave."""
 import json
 
 import httpx
