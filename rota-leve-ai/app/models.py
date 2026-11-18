@@ -1,4 +1,3 @@
-"""Contratos de dados (Pydantic). São também o contrato OpenAPI do serviço de IA."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -13,16 +12,16 @@ class Profile(str, Enum):
     CADEIRANTE = "cadeirante"
     CARRINHO = "carrinho"
     IDOSO = "idoso"
-    MOBILIDADE_TEMPORARIA = "mobilidade_temporaria"  # perna engessada, pós-cirurgia
+    MOBILIDADE_TEMPORARIA = "mobilidade_temporaria"  # ex: perna engessada
 
 
 class Leg(BaseModel):
     mode: Literal["WALK", "SUBWAY", "TRAIN", "BUS"]
     distance_m: int = Field(0, ge=0)
     duration_min: int = Field(..., ge=0)
-    from_place: str | None = None  # id no catálogo (estação/ponto) — None = sem dados
+    from_place: str | None = None
     to_place: str | None = None
-    segment_id: str | None = None  # trecho de calçada (para relatos "calçada ruim")
+    segment_id: str | None = None
     slope: Literal["plana", "leve", "ingreme"] = "plana"
     line: str | None = None
     num_stops: int | None = None
@@ -43,10 +42,8 @@ class ReportKind(str, Enum):
 
 
 class Report(BaseModel):
-    """Relato colaborativo. Expira se ninguém confirmar dentro do TTL."""
-
     id: str
-    place_id: str  # estação/ponto ou segmento de calçada
+    place_id: str
     kind: ReportKind
     text: str = ""
     reported_at: datetime
@@ -57,9 +54,7 @@ class Report(BaseModel):
 
 class RankRequest(BaseModel):
     profile: Profile
-    # Rotas candidatas (o backend obtém no Google Directions e converte para este formato). De 1 a 10.
     routes: list[Route] = Field(..., min_length=1, max_length=10)
-    # Relatos opcionais; se ausente, o serviço usa a base local de relatos.
     reports: list[Report] | None = None
     explain: bool = True
 
@@ -71,9 +66,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     profile: Profile
-    # Conversa completa enviada pelo app (o serviço não guarda histórico). A última é a pergunta atual.
     messages: list[ChatMessage] = Field(..., min_length=1, max_length=20)
-    # Rotas que a pessoa está vendo; dão contexto às respostas. Opcional.
     routes: list[Route] | None = Field(None, max_length=10)
     reports: list[Report] | None = None
 
@@ -86,7 +79,6 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    # llm = gerada pelo modelo e validada | template = sem LLM | template_fallback = LLM falhou/reprovou
     source: Literal["llm", "template", "template_fallback"]
     fallback_reason: str | None = None
     out_of_scope: bool = False
@@ -100,7 +92,7 @@ class ChatResponse(BaseModel):
 
 class ScoreItem(BaseModel):
     code: str
-    points: int  # negativo = penalidade
+    points: int
     detail: str
 
 
@@ -108,7 +100,6 @@ class Explanation(BaseModel):
     resumo: str
     pontos_de_atencao: list[str] = Field(default_factory=list)
     dica: str | None = None
-    # llm = gerada pelo modelo e validada | template = sem LLM configurado | template_fallback = LLM falhou/reprovou
     source: Literal["llm", "template", "template_fallback"] = "template"
     fallback_reason: str | None = None
     kb_refs: list[str] = Field(default_factory=list)
