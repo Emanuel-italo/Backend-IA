@@ -1,4 +1,3 @@
-"""Testes do assistente conversacional. O FakeLLM (conftest.py) faz o papel do modelo, com respostas fixas."""
 import pytest
 
 from app.chat import ChatAssistant
