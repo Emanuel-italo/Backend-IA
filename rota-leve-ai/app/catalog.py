@@ -1,8 +1,3 @@
-"""Catálogo de estações e pontos de ônibus com informações de acessibilidade.
-
-Os dados de data/pontos.json são SINTÉTICOS (inventados para a demonstração).
-Em produção viriam de dados abertos (SPTrans, Metrô) e de um cadastro mantido por gestores.
-"""
 from __future__ import annotations
 
 import json
@@ -14,11 +9,11 @@ from pathlib import Path
 class Place:
     id: str
     name: str
-    type: str  # "station" (estação) ou "bus_stop" (ponto de ônibus)
+    type: str  # station ou bus_stop
     has_elevator: bool = False
-    stairs_flights: int = 0  # lances de escada quando não há elevador
-    covered: bool = True     # ponto coberto?
-    seating: bool = True     # tem banco?
+    stairs_flights: int = 0
+    covered: bool = True
+    seating: bool = True
 
 
 class Catalog:
