@@ -1,4 +1,3 @@
-"""Testes da explicação das rotas. O FakeLLM (conftest.py) faz o papel do modelo, com respostas fixas."""
 from app.explain import Explainer
 from app.llm import LLMError
 from app.models import Profile
@@ -24,7 +23,7 @@ def test_modelo_inventa_numero_e_a_pessoa_recebe_o_texto_pronto(catalog, store, 
     llm = FakeLLM({"resumo": "Rota rápida, só 150 m de caminhada e 10 min.", "pontos_de_atencao": []})
     exp = Explainer(retriever, llm).explain(Profile.GESTANTE, fatos)
     assert exp.source == "template_fallback"
-    assert "600 m" in exp.resumo  # o texto pronto usa os números verdadeiros
+    assert "600 m" in exp.resumo
 
 
 def test_modelo_fora_do_ar_e_a_pessoa_recebe_o_texto_pronto(catalog, store, routes, retriever):
