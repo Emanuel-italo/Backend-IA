@@ -1,4 +1,3 @@
-"""API do serviço de IA do Rota Leve (FastAPI). Stateless: pronta para escalar horizontalmente."""
 from __future__ import annotations
 
 import hmac
@@ -38,7 +37,6 @@ def get_ranker() -> RouteRanker:
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    """Só quem tem a SERVICE_API_KEY (backend e servidor do front) chama os endpoints que usam o LLM."""
     expected = get_settings().service_api_key
     if expected and not (x_api_key and hmac.compare_digest(x_api_key, expected)):
         raise HTTPException(status_code=401, detail="API key inválida ou ausente")
@@ -61,24 +59,17 @@ def health() -> dict:
 
 @app.get("/v1/demo/routes", response_model=list[Route])
 def demo_routes() -> list[Route]:
-    """Rotas sintéticas do cenário de demonstração (Júlia)."""
     raw = json.loads((get_settings().data_dir / "rotas_demo.json").read_text(encoding="utf-8"))
     return [Route(**r) for r in raw["rotas"]]
 
 
 @app.post("/v1/routes/rank", response_model=RankResponse, dependencies=[Depends(require_api_key)])
 def rank_routes(req: RankRequest) -> RankResponse:
-    """Recebe o perfil e as rotas candidatas; devolve as rotas ordenadas, com nota e explicação."""
     return get_ranker().rank(req.profile, req.routes, reports=req.reports, explain=req.explain)
 
 
 @app.post("/v1/chat", response_model=ChatResponse, dependencies=[Depends(require_api_key)])
 def chat(req: ChatRequest) -> ChatResponse:
-    """Assistente conversacional sobre as rotas exibidas e acessibilidade no transporte.
-
-    O app envia a conversa inteira em `messages` (o serviço não guarda histórico) e, opcionalmente, as rotas
-    que a pessoa está vendo em `routes`, para que as respostas usem os mesmos fatos do score.
-    """
     ranker = get_ranker()
     facts = ranker.route_facts(req.profile, req.routes, reports=req.reports) if req.routes else []
     assistant = ChatAssistant(ranker.explainer.retriever, ranker.explainer.llm)
