@@ -1,11 +1,3 @@
-"""Validação de fidelidade (groundedness) da resposta do LLM.
-
-O LLM só pode REDIGIR; os fatos vêm do score e dos relatos. Antes de mostrar ao cidadão, checamos:
-1. Todo número citado existe nos fatos ou nos trechos recuperados (pega distâncias/tempos inventados).
-2. O texto não contradiz fatos críticos (ex.: dizer "elevador funcionando" com relato de elevador fora).
-Reprovou => descartamos a resposta e usamos o template determinístico.
-É uma checagem heurística (não detecta toda alucinação); as limitações estão no README.
-"""
 from __future__ import annotations
 
 import re
@@ -44,7 +36,6 @@ def _plain(text: str) -> str:
 
 
 def check(text: str, facts: dict, context_texts: list[str]) -> tuple[bool, str | None]:
-    """Retorna (ok, motivo_da_reprovacao)."""
     ok, reason = check_numbers(text, [facts, context_texts])
     if not ok:
         return ok, reason
@@ -52,7 +43,6 @@ def check(text: str, facts: dict, context_texts: list[str]) -> tuple[bool, str |
 
 
 def check_numbers(text: str, sources: list) -> tuple[bool, str | None]:
-    """Todo número do texto precisa aparecer em alguma das fontes (fatos, trechos, mensagens)."""
     allowed = _numbers(sources)
     for n in _numbers(text):
         if n not in allowed:
@@ -61,7 +51,6 @@ def check_numbers(text: str, sources: list) -> tuple[bool, str | None]:
 
 
 def check_contradictions(text: str, facts: dict) -> tuple[bool, str | None]:
-    """O texto não pode contradizer fatos críticos de uma rota (bloqueio, elevador fora)."""
     plain = _plain(text)
     if facts.get("bloqueada_para_o_perfil"):
         for phrase in CONTRADICTIONS_IF_BLOCKED:
