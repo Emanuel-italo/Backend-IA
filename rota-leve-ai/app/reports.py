@@ -1,9 +1,3 @@
-"""Relatos colaborativos com expiração.
-
-Regra do produto: "o relato expira se ninguém confirmar". Um relato é ATIVO enquanto
-(agora - última confirmação) < TTL. Com >= 2 confirmações é tratado como CONFIRMADO (peso 1.0);
-com 1 apenas, como NÃO CONFIRMADO (peso 0.5 e nunca bloqueia sozinho a rota).
-"""
 from __future__ import annotations
 
 import json
@@ -37,7 +31,6 @@ class ReportStore:
 
     @classmethod
     def from_seed(cls, path: Path, now: datetime | None = None) -> "ReportStore":
-        """Seed usa horas relativas para que a demo nunca fique 'velha' (os relatos reais vêm da API .NET)."""
         now = now or utcnow()
         raw = json.loads(path.read_text(encoding="utf-8"))
         reports = []
