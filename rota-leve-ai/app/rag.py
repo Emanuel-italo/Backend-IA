@@ -1,12 +1,3 @@
-"""RAG básico: recuperação sobre a base de conhecimento de acessibilidade.
-
-Escolha técnica: TF-IDF de n-gramas de caracteres + similaridade de cosseno (scikit-learn).
-- A base é pequena e curada (dezenas de trechos): um índice vetorial externo seria custo sem ganho.
-- N-gramas de caracteres toleram flexões e erros de digitação em português ("elevador/elevadores").
-- É determinístico e roda offline => avaliação reprodutível (hit@k / MRR em eval/).
-A interface `Retriever.search` isola a escolha: trocar por embeddings + Azure AI Search/pgvector
-não muda o resto do serviço.
-"""
 from __future__ import annotations
 
 import json
@@ -66,14 +57,13 @@ class Retriever:
         return cls(chunks, min_score=min_score)
 
     def search(self, query: str, profile: Profile | None = None, k: int = 2) -> list[Hit]:
-        """Retorna até k trechos acima do limiar. Lista vazia = 'não sei' (melhor que dica irrelevante)."""
         if not query.strip():
             return []
         sims = cosine_similarity(self._vec.transform([query]), self._matrix)[0]
         hits = []
         for chunk, sim in zip(self.chunks, sims):
             if sim < self.min_score:
-                continue  # o boost de perfil só reordena; não "salva" trecho irrelevante
+                continue
             boost = PROFILE_BOOST if profile and profile.value in chunk.perfis else 0.0
             hits.append(Hit(chunk=chunk, score=float(sim) + boost))
         hits.sort(key=lambda h: h.score, reverse=True)
